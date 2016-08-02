@@ -1,0 +1,24 @@
+FROM quay.io/azavea/flask:0.11
+
+MAINTAINER Azavea
+
+RUN apt-get update
+
+RUN pip install --upgrade pip
+COPY requirements.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY ./geop /usr/src/geop
+
+WORKDIR /usr/src/geop
+
+EXPOSE 8080
+
+CMD ["-w", "2", \
+     "-b", "0.0.0.0:8080", \
+     "--reload", \
+     "--log-level", "info", \
+     "--error-logfile", "-", \
+     "--forwarded-allow-ips", "*", \
+     "-k", "gevent", \
+"main:app"]
