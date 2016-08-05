@@ -19,6 +19,8 @@ Vagrant.configure(2) do |config|
   # Geop Flask debug server
   config.vm.network :forwarded_port, guest: 8081, host: 8081
 
+  # Sync a data directory
+  #config.vm.synced_folder "~/shapes/", "/vagrant/src/shapes"
 
   # Change working directory to /vagrant upon session start.
   config.vm.provision "shell", inline: <<SCRIPT
