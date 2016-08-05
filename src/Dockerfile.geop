@@ -4,11 +4,26 @@ MAINTAINER Azavea
 
 RUN apt-get update
 
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository ppa:ubuntugis/ppa
+
+RUN apt-get install -y \
+        gdal-bin \
+        libgdal-dev \
+        libgeos-dev
+
 RUN pip install --upgrade pip
+
+# numpy needs to be installed prior to additional dependencies
+RUN pip install --no-cache-dir \
+    numpy
+
 COPY requirements.txt /tmp/
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir -r \
+    /tmp/requirements.txt
 
 COPY ./geop /usr/src/geop
+#COPY ./shapes/test.tif /usr/src/geop/data/test.tif
 
 WORKDIR /usr/src/geop
 
