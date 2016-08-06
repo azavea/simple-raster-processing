@@ -2,25 +2,21 @@ FROM quay.io/azavea/flask:0.11
 
 MAINTAINER Azavea
 
-RUN apt-get update
-
-RUN apt-get install -y software-properties-common
-RUN add-apt-repository ppa:ubuntugis/ppa
-
-RUN apt-get install -y \
-        gdal-bin \
-        libgdal-dev \
-        libgeos-dev
-
-RUN pip install --upgrade pip
-
-# numpy needs to be installed prior to additional dependencies
-RUN pip install --no-cache-dir \
-    numpy
+RUN \
+      apt-get update && apt-get install -y --no-install-recommends \
+              gdal-bin \
+              libgdal-dev \
+      && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/
-RUN pip install --no-cache-dir -r \
-    /tmp/requirements.txt
+
+RUN \
+      pip install --no-cache-dir \
+          numpy==$(grep "numpy" /tmp/requirements.txt | cut -d= -f3) \
+      && pip install --no-cache-dir -r /tmp/requirements.txt \
+      && rm /tmp/requirements.txt \
+      && apt-get purge -y --auto-remove \
+                 libgdal-dev
 
 COPY ./geop /usr/src/geop
 #COPY ./shapes/test.tif /usr/src/geop/data/test.tif
@@ -29,11 +25,11 @@ WORKDIR /usr/src/geop
 
 EXPOSE 8080
 
-CMD ["-w", "2", \
+CMD ["-w", "1", \
      "-b", "0.0.0.0:8080", \
      "--reload", \
      "--log-level", "info", \
      "--error-logfile", "-", \
      "--forwarded-allow-ips", "*", \
      "-k", "gevent", \
-"main:app"]
+     "main:app"]
