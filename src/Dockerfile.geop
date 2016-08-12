@@ -19,7 +19,6 @@ RUN \
                  libgdal-dev
 
 COPY ./geop /usr/src/geop
-#COPY ./shapes/test.tif /usr/src/geop/data/test.tif
 
 WORKDIR /usr/src/geop
 
