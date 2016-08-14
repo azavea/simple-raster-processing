@@ -66,6 +66,56 @@ def count():
     })
 
 
+@app.route('/pair-counts', methods=['POST'])
+def pair_counts():
+    """
+    For a pair of rasters whos extents and srs match, count cell pairs that
+    occur when the rasters are stacked.  This resembles the geoprocessing
+    required to run TR-55.
+    """
+    user_input = parse_config(request)
+
+    start = time.clock()
+    geom = reproject(
+            shape(user_input['query_polygon']),
+            to_srs=user_input['srs'])
+
+    def mask_geom_on_raster(raster_path):
+        with rasterio.open(raster_path) as src:
+            window, shifted_affine = get_window_and_affine(geom, src)
+            data = src.read(1, window=window)
+
+        geom_mask = features.rasterize(
+            [(geom, 0)],
+            out_shape=data.shape,
+            transform=shifted_affine,
+            fill=1,
+            dtype=np.uint8,
+            all_touched=True
+        )
+
+        return np.ma.array(data=data, mask=geom_mask.astype(bool))
+
+    layers = [mask_geom_on_raster(raster_path)
+              for raster_path in user_input['raster_paths']]
+
+    first = layers[0].astype('str')
+    second = layers[1].astype('str')
+
+    with_sep = np.core.defchararray.add('::', second)
+    joined = np.core.defchararray.add(first, with_sep)
+
+    values, counts = np.unique(joined, return_counts=True)
+
+    # Make dict of val: count with string keys for valid json
+    count_map = dict(zip(values, counts))
+
+    return jsonify({
+        'time': time.clock() - start,
+        'counts': count_map,
+    })
+
+
 @app.errorhandler(UserInputError)
 def handle_error(error):
     response = jsonify({'message': error.message})
