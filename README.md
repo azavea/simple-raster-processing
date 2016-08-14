@@ -17,12 +17,23 @@ The API is now exposed to your host on `:8080`
 
 ### Request a count
 
-Request a frequency count of cell values in center city Philadelphia:
+Request a frequency count of cell values in center city Philadelphia. POST a JSON configuration which has
+- `rasters`: list of file names in `DATA_DIR`
+- `query_polygon`: GeoJSON polygon area of interest
+
 ```bash
-curl -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"type":"MultiPolygon","coordinates":[[[[-75.1626205444336,39.95580659996906],[-75.25531768798828,39.94514735903112],[-75.22785186767578,39.89446035777916],[-75.1461410522461,39.88761144548104],[-75.09309768676758,39.91078961774283],[-75.09464263916016,39.93817189499188],[-75.12039184570312,39.94435771955196],[-75.1626205444336,39.95580659996906]]]]}' \
-    "http://localhost:8080/counts?filename=nlcd/nlcd_2011_landcover_2011_edition_2014_10_10.img"
+curl -X POST -H "Content-Type: application/json" -d '{
+    "rasters": ["nlcd/nlcd_2011_landcover_2011_edition_2014_10_10.img"],
+    "queryPolygon": 
+    {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-75.18768310546875,39.93395994977672],[-75.18768310546875,39.97764627359865],[-75.13412475585938,39.97764627359865],[-75.13412475585938,39.93395994977672],[-75.18768310546875,39.93395994977672]
+          ]
+        ]
+      }
+}' "http://localhost:8080/counts"
 ```
 
 where `nlcd/nlcd_2011...10_10.img` can be any EPSG:5070 raster in the `DATA_DIR` directory.
