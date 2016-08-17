@@ -96,23 +96,48 @@ def pair_counts():
 
         return np.ma.array(data=data, mask=geom_mask.astype(bool))
 
-    layers = [mask_geom_on_raster(raster_path)
-              for raster_path in user_input['raster_paths']]
+    layers = tuple(mask_geom_on_raster(raster_path)
+                   for raster_path in user_input['raster_paths'])
 
-    first = layers[0].astype('str')
-    second = layers[1].astype('str')
+    # Take the two masked arrays, and stack them along the third axis
+    # Effectively: [[cell_1a, cell_1b], [cell_2a, cell_2b], ..],[[...]]
+    pairs = np.ma.dstack(layers)
 
-    with_sep = np.core.defchararray.add('::', second)
-    joined = np.core.defchararray.add(first, with_sep)
+    # Get the array in 2D form
+    arr = pairs.reshape(-1, pairs.shape[-1])
 
-    values, counts = np.unique(joined, return_counts=True)
+    # Remove Rows which have masked values
+    trim_arr = np.ma.compress_rowcols(arr, 0)
 
-    # Make dict of val: count with string keys for valid json
-    count_map = dict(zip(values, counts))
+    # Lexicographically sort so that repeated pairs follow one another
+    sorted_arr = trim_arr[np.lexsort(trim_arr.T), :]
+
+    # Get the indices where a new row of pairs appears
+    diff_indexes = np.where(np.any(np.diff(sorted_arr, axis=0), 1))[0]
+
+    # Get the rows at the diff indexes, these are unique at each index
+    unique_rows = [sorted_arr[i] for i in diff_indexes] + [sorted_arr[-1]]
+
+    # Prepend a -1 on the list of diff_indexes and append the index of the last
+    # unique row, resulting in an array of index changes with fenceposts on
+    # both sides.  ie, `[-1, ...list of diff indexes..., <idx of last sorted>]`
+    idx_of_last_val = sorted_arr.shape[0] - 1
+    diff_idx_with_start = np.insert(diff_indexes, 0, -1)
+    fencepost_diff_indexes = np.append(diff_idx_with_start, idx_of_last_val)
+
+    # Get the number of occurences of each unique row based on the difference
+    # between the indexes at which they change.  Since we put fenceposts up,
+    # we'll get a count for the first and last elements of the diff indexes
+    counts = np.diff(fencepost_diff_indexes)
+
+    # Map the pairs to the count, compressing values to keys in this format:
+    #   cell_r1::cell_r2
+    pair_counts = zip(unique_rows, counts)
+    pair_map = {str(k[0]) + '::' + str(k[1]): cnt for k, cnt in pair_counts}
 
     return jsonify({
         'time': time.clock() - start,
-        'counts': count_map,
+        'pairs': pair_map
     })
 
 
