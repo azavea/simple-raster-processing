@@ -2,7 +2,6 @@ import os
 import time
 import numpy as np
 import rasterio
-import rasterio.mask
 
 from flask import Flask, request, jsonify
 from rasterio import features
@@ -24,7 +23,6 @@ def count():
 
     Query String Args:
         filename: file name of a valid geotiff in DATA_DIR
-        rio_mask (bool): Use the built in rasterio.mask.mask function
     """
 
     raster = request.args.get('filename')
@@ -39,44 +37,30 @@ def count():
     if not query_polygon:
         return handle_error('GeoJSON polygon is required in body')
 
-    rio_mask = request.args.get('rio_mask')
-
     start = time.clock()
     geom_5070 = reproject(shape(query_polygon))
 
-    if rio_mask:
-        with rasterio.open(raster_path) as src:
-            # Use the rasterio mask method to fill nodata values into raster
-            # areas that don't intersect the input polygon.  Manually
-            # convert that array to a masked array
-            no_data = 0  # Works if 0 is not valid raster value
-            raster_nd, affine = rasterio.mask.mask(
-                    src, [geom_5070.__geo_interface__], nodata=no_data,
-                    crop=True, all_touched=True)
+    with rasterio.open(raster_path) as src:
+        # Read a chunk of the raster that contains the bounding box of the
+        # input geometry.  This has memory implications if that rectangle
+        # is large. The affine transformation maps geom coordinates to the
+        # image mask below.
+        window, shifted_affine = get_window_and_affine(geom_5070, src)
+        data = src.read(1, window=window)
 
-        masked_data = np.ma.masked_equal(raster_nd, no_data)
-    else:
-        with rasterio.open(raster_path) as src:
-            # Read a chunk of the raster that contains the bounding box of the
-            # input geometry.  This has memory implications if that rectangle
-            # is large. The affine transformation maps geom coordinates to the
-            # image mask below.
-            window, shifted_affine = get_window_and_affine(geom_5070, src)
-            data = src.read(1, window=window)
+    # Create a numpy array to mask cells which don't intersect with the
+    # polygon. Cells that intersect will have value of 0 (unmasked), the
+    # rest are filled with 1s (masked)
+    geom_mask = features.rasterize(
+        [(geom_5070, 0)],
+        out_shape=data.shape,
+        transform=shifted_affine,
+        fill=1,
+        dtype=np.uint8,
+        all_touched=True
+    )
 
-        # Create a numpy array to mask cells which don't intersect with the
-        # polygon. Cells that intersect will have value of 0 (unmasked), the
-        # rest are filled with 1s (masked)
-        geom_mask = features.rasterize(
-            [(geom_5070, 0)],
-            out_shape=data.shape,
-            transform=shifted_affine,
-            fill=1,
-            dtype=np.uint8,
-            all_touched=True
-        )
-
-        masked_data = np.ma.array(data=data, mask=geom_mask.astype(bool))
+    masked_data = np.ma.array(data=data, mask=geom_mask.astype(bool))
 
     # Perform count using numpy built-ins.  Compressing the masked array
     # creates a 1D array of just unmasked values.  May be able to speed up
