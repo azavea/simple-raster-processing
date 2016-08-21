@@ -21,13 +21,18 @@ def count():
     user_input = parse_config(request)
 
     start = time.clock()
+    to_srs = user_input['srs']
     geom = reproject(
             shape(user_input['query_polygon']),
-            to_srs=user_input['srs'])
+            to_srs=to_srs)
 
     raster_path = user_input['raster_paths'][0]
+    mods = user_input['mods']
+    if mods:
+        for mod in mods:
+            mod['geom'] = reproject(shape(mod['geom']), to_srs)
 
-    masked_data = mask_geom_on_raster(geom, raster_path)
+    masked_data = mask_geom_on_raster(geom, raster_path, mods)
 
     # Perform count using numpy built-ins.  Compressing the masked array
     # creates a 1D array of just unmasked values.  May be able to speed up

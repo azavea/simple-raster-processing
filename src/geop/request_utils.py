@@ -40,10 +40,13 @@ def parse_config(request):
 
         srs = req_config.get('src_srs', DEFAULT_SRS)
 
+        mods = req_config.get('modifications', None)
+
         return {
             'query_polygon': query_polygon,
             'raster_paths': raster_paths,
             'srs': srs,
+            'mods': mods,
         }
 
     raise UserInputError('JSON config is required in body')
