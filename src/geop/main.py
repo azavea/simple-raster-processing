@@ -2,10 +2,9 @@ import time
 import numpy as np
 
 from flask import Flask, request, jsonify
-from shapely.geometry import shape
 
 from errors import UserInputError
-from geo_utils import mask_geom_on_raster, reproject
+from geo_utils import mask_geom_on_raster
 from request_utils import parse_config
 
 
@@ -15,22 +14,17 @@ app = Flask(__name__)
 @app.route('/counts', methods=['POST'])
 def count():
     """
-    Perform a rudimentary cell count analysis on a portion of a
-    provided raster
+    Perform a cell count analysis on a portion of a provided raster.
+    If `modifications` is present on the input payload, apply those
+    modification values to the raster before peforming the count.
     """
     user_input = parse_config(request)
 
     start = time.clock()
-    to_srs = user_input['srs']
-    geom = reproject(
-            shape(user_input['query_polygon']),
-            to_srs=to_srs)
 
+    geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
     mods = user_input['mods']
-    if mods:
-        for mod in mods:
-            mod['geom'] = reproject(shape(mod['geom']), to_srs)
 
     masked_data = mask_geom_on_raster(geom, raster_path, mods)
 
@@ -54,14 +48,12 @@ def pair_counts():
     """
     For a pair of rasters whose extents and srs match, count cell pairs that
     occur when the rasters are stacked.  This resembles the geoprocessing
-    required to run TR-55.
+    required to run TR-55.  At present, this does not accept modifications.
     """
     user_input = parse_config(request)
 
     start = time.clock()
-    geom = reproject(
-            shape(user_input['query_polygon']),
-            to_srs=user_input['srs'])
+    geom = user_input['query_polygon']
 
     # Read in two rasters and mask geom on both of them
     layers = tuple(mask_geom_on_raster(geom, raster_path)

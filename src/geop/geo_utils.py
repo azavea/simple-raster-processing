@@ -57,7 +57,7 @@ def mask_geom_on_raster(geom, raster_path, mods=None, all_touched=True):
         # This copies over `data` in place.
         for mod in mods:
             features.rasterize(
-                [(mod['geom'], mod['val'])],
+                [(mod['geom'], mod['newValue'])],
                 out=data,
                 transform=shifted_affine,
                 all_touched=all_touched,
