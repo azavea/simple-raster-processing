@@ -10,3 +10,4 @@ services:
       - "8081:8081"
     volumes:
       - ./src/geop:/usr/src/geop
+      - ./data:/usr/data
