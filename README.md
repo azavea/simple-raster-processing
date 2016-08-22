@@ -150,6 +150,32 @@ and the value of `newValue` will be applied to the raster where it intersects wi
 }
 ```
 
+#### Sample a raster value at a given coordinate
+Example query config:
+```json
+{
+    "rasters": ["nlcd/nlcd_2011_landcover_2011_edition_2014_10_10.img"],
+    "queryPolygon":
+
+     {
+        "type": "Point",
+        "coordinates": [
+          -75.31883239746094,
+          39.84492203964992
+        ]
+      }
+
+}
+```
+output:
+
+```json
+{
+  "time": 0.034891000000000005,
+  "value": 11
+}
+```
+
 #### Sample Rasters
 The 2011 NLCD is a 30m conterminous raster that is in an equal area projection (EPSG:5070).  It can be downloaded for free:
 

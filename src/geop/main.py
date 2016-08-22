@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import rasterio
 
 from flask import Flask, request, jsonify
 
@@ -109,6 +110,28 @@ def pair_counts():
     return jsonify({
         'time': time.clock() - start,
         'pairs': pair_map
+    })
+
+
+@app.route('/xy', methods=['POST'])
+def xy():
+    """
+    Get the cell value for a given GeoJSON point.
+
+    """
+    user_input = parse_config(request)
+    start = time.clock()
+    geom = user_input['query_polygon']
+    raster_path = user_input['raster_paths'][0]
+
+    with rasterio.open(raster_path) as src:
+        # Sample the raster at the given coordinates
+        value_gen = src.sample([(geom.x, geom.y)], indexes=[1])
+        value = value_gen.next().item(0)
+
+    return jsonify({
+        'time': time.clock() - start,
+        'value': value
     })
 
 
