@@ -66,17 +66,15 @@ def mask_geom_on_raster(geom, raster_path, mods=None, all_touched=True):
     # Create a numpy array to mask cells which don't intersect with the
     # polygon. Cells that intersect will have value of 0 (unmasked), the
     # rest are filled with 1s (masked)
-    geom_mask = features.rasterize(
-        [(geom, 0)],
+    geom_mask = features.geometry_mask(
+        [geom],
         out_shape=data.shape,
         transform=shifted_affine,
-        fill=1,
-        dtype=np.uint8,
         all_touched=all_touched
     )
 
     # Mask the data array, with modifications applied, by the query polygon
-    return np.ma.array(data=data, mask=geom_mask.astype(bool))
+    return np.ma.array(data=data, mask=geom_mask)
 
 
 def get_window_and_affine(geom, raster_src):
