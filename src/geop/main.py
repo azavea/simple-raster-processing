@@ -1,13 +1,17 @@
-import os
 import time
-
-from flask import Flask, request, jsonify
 import numpy as np
 import rasterio
 
-app = Flask(__name__)
+from flask import Flask, request, jsonify
+from rasterio import features
+from shapely.geometry import shape
 
-DATA_PATH = '/usr/data/'
+from errors import UserInputError
+from geo_utils import get_window_and_affine, reproject
+from request_utils import parse_config
+
+
+app = Flask(__name__)
 
 
 @app.route('/counts', methods=['POST'])
@@ -15,45 +19,57 @@ def count():
     """
     Perform a rudimentary cell count analysis on a portion of a
     provided raster
-
-    Query String Args:
-        filename: file name of a valid geotiff in DATA_DIR
     """
+    user_input = parse_config(request)
 
-    raster = request.args.get('filename')
-    if not raster:
-        return handle_error('filename parameter is required')
-
-    raster_path = os.path.join(DATA_PATH, raster)
-    if not os.path.isfile(raster_path):
-        return handle_error('{} is not valid file in DATA_DIR'.format(raster))
-
-    counts = {}
     start = time.clock()
+    geom = reproject(
+            shape(user_input['query_polygon']),
+            to_srs=user_input['srs'])
+
+    raster_path = user_input['raster_paths'][0]
+
     with rasterio.open(raster_path) as src:
-        w = src.read(1, window=((10000, 10350), (10000, 10350)))
+        # Read a chunk of the raster that contains the bounding box of the
+        # input geometry.  This has memory implications if that rectangle
+        # is large. The affine transformation maps geom coordinates to the
+        # image mask below.
+        window, shifted_affine = get_window_and_affine(geom, src)
+        data = src.read(1, window=window)
 
-        for idx, cell in np.ndenumerate(w):
-            cell_val = str(cell)
+    # Create a numpy array to mask cells which don't intersect with the
+    # polygon. Cells that intersect will have value of 0 (unmasked), the
+    # rest are filled with 1s (masked)
+    geom_mask = features.rasterize(
+        [(geom, 0)],
+        out_shape=data.shape,
+        transform=shifted_affine,
+        fill=1,
+        dtype=np.uint8,
+        all_touched=True
+    )
 
-            if cell_val in counts:
-                counts[cell_val] += 1
-            else:
-                counts[cell_val] = 1
+    masked_data = np.ma.array(data=data, mask=geom_mask.astype(bool))
 
-    elapsed = time.clock() - start
-    cells = reduce(lambda s, key: s + counts[key], counts.keys(), 0)
+    # Perform count using numpy built-ins.  Compressing the masked array
+    # creates a 1D array of just unmasked values.  May be able to speed up
+    # by using scipy count_tier_group, but this is working well for now
+    values, counts = np.unique(masked_data.compressed(), return_counts=True)
+
+    # Make dict of val: count with string keys for valid json
+    count_map = dict(zip(map(str, values), counts))
 
     return jsonify({
-        'time': elapsed,
-        'cellCount': cells,
-        'counts': counts,
+        'time': time.clock() - start,
+        'cellCount': masked_data.count(),
+        'counts': count_map,
     })
 
 
-def handle_error(msg, code=400):
-    response = jsonify({'message': msg})
-    response.status_code = code
+@app.errorhandler(UserInputError)
+def handle_error(error):
+    response = jsonify({'message': error.message})
+    response.status_code = error.status_code
     return response
 
 
