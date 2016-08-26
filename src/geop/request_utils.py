@@ -36,7 +36,7 @@ def parse_config(request):
 
         query_polygon = req_config.get('queryPolygon', None)
         if not query_polygon:
-            raise UserInputError('query_polygon key is required in config')
+            raise UserInputError('queryPolygon key is required in config')
 
         srs = req_config.get('src_srs', DEFAULT_SRS)
 
