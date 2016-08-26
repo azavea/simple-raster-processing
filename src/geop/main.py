@@ -75,8 +75,19 @@ def pair_counts():
     # Lexicographically sort so that repeated pairs follow one another
     sorted_arr = trim_arr[np.lexsort(trim_arr.T), :]
 
-    # Get the indices where a new row of pairs appears
-    diff_indexes = np.where(np.any(np.diff(sorted_arr, axis=0), 1))[0]
+    # The difference between index n and n+1 in sorted_arr, for each index.
+    # Since it's sorted, repated entries will have a value of 0 at that index
+    diff_sort = np.diff(sorted_arr, axis=0)
+
+    # True or False value for each index of diff_sort where based on a diff_sort
+    # having truthy or falsey values.  Indexs with no change (0 values) will be
+    # represended as False in this array
+    indexes_changed_mask = np.any(diff_sort, 1)
+
+    # Get the indexes that are True, indicating an index of sorted_arr that has
+    # a difference with its preceeding value - ie, it represents a new occurance
+    # of a value
+    diff_indexes = np.where(indexes_changed_mask)[0]
 
     # Get the rows at the diff indexes, these are unique at each index
     unique_rows = [sorted_arr[i] for i in diff_indexes] + [sorted_arr[-1]]
