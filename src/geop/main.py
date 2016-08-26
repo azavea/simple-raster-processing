@@ -1,4 +1,3 @@
-import os
 import time
 import numpy as np
 import rasterio
@@ -7,12 +6,12 @@ from flask import Flask, request, jsonify
 from rasterio import features
 from shapely.geometry import shape
 
-from utils import get_window_and_affine, reproject
+from errors import UserInputError
+from geo_utils import get_window_and_affine, reproject
+from request_utils import parse_config
 
 
 app = Flask(__name__)
-
-DATA_PATH = '/usr/data/'
 
 
 @app.route('/counts', methods=['POST'])
@@ -20,39 +19,29 @@ def count():
     """
     Perform a rudimentary cell count analysis on a portion of a
     provided raster
-
-    Query String Args:
-        filename: file name of a valid geotiff in DATA_DIR
     """
-
-    raster = request.args.get('filename')
-    if not raster:
-        return handle_error('filename parameter is required')
-
-    raster_path = os.path.join(DATA_PATH, raster)
-    if not os.path.isfile(raster_path):
-        return handle_error('{} is not valid file in DATA_DIR'.format(raster))
-
-    query_polygon = request.get_json(silent=True)
-    if not query_polygon:
-        return handle_error('GeoJSON polygon is required in body')
+    user_input = parse_config(request)
 
     start = time.clock()
-    geom_5070 = reproject(shape(query_polygon))
+    geom = reproject(
+            shape(user_input['query_polygon']),
+            to_srs=user_input['srs'])
+
+    raster_path = user_input['raster_paths'][0]
 
     with rasterio.open(raster_path) as src:
         # Read a chunk of the raster that contains the bounding box of the
         # input geometry.  This has memory implications if that rectangle
         # is large. The affine transformation maps geom coordinates to the
         # image mask below.
-        window, shifted_affine = get_window_and_affine(geom_5070, src)
+        window, shifted_affine = get_window_and_affine(geom, src)
         data = src.read(1, window=window)
 
     # Create a numpy array to mask cells which don't intersect with the
     # polygon. Cells that intersect will have value of 0 (unmasked), the
     # rest are filled with 1s (masked)
     geom_mask = features.rasterize(
-        [(geom_5070, 0)],
+        [(geom, 0)],
         out_shape=data.shape,
         transform=shifted_affine,
         fill=1,
@@ -77,9 +66,10 @@ def count():
     })
 
 
-def handle_error(msg, code=400):
-    response = jsonify({'message': msg})
-    response.status_code = code
+@app.errorhandler(UserInputError)
+def handle_error(error):
+    response = jsonify({'message': error.message})
+    response.status_code = error.status_code
     return response
 
 
