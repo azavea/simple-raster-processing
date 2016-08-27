@@ -115,5 +115,67 @@ class WeightedOverlayTests(unittest.TestCase):
         self.assertTrue(np.all(layer == expected))
 
 
+class RelassificationTests(unittest.TestCase):
+    reclass_geom = Polygon([
+        [1747032.24039185303263366, 2071990.49254682078026235],
+        [1747037.83687203959561884, 2071660.30021581239998341],
+        [1747416.29884465713985264, 2071660.99977583577856421],
+        [1747415.59928463399410248, 2071989.79298679763451219],
+        [1747032.24039185303263366, 2071990.49254682078026235]
+    ])
+
+    def test_single_reclass(self):
+        """
+        Tests that a single substitution is made for a reclass definition
+        """
+        reclass = [(11, 100)]
+        new_layer = geoprocessing.reclassify(self.reclass_geom,
+                                             NLCD_PATH, reclass)
+        self.assertFalse(np.any(new_layer == 11))
+
+        orig_count = geoprocessing.count(self.reclass_geom, NLCD_PATH)[1]['11']
+        new_count = geoprocessing.masked_array_count(new_layer)[1]['100']
+
+        self.assertEqual(orig_count, new_count)
+
+    def test_multi_reclass(self):
+        """
+        Tests that a multiple substitutions are made for a reclass definition
+        containing more than one definition
+        """
+        reclass = [(11, 100), (21, 200)]
+        new_layer = geoprocessing.reclassify(self.reclass_geom, NLCD_PATH,
+                                             reclass)
+        self.assertFalse(np.any(new_layer == 11))
+        self.assertFalse(np.any(new_layer == 21))
+
+        orig_counts = geoprocessing.count(self.reclass_geom, NLCD_PATH)[1]
+        new_counts = geoprocessing.masked_array_count(new_layer)[1]
+
+        self.assertEqual(orig_counts['11'], new_counts['100'])
+        self.assertEqual(orig_counts['21'], new_counts['200'])
+
+    def test_range_reclass(self):
+        """
+        Tests a single reclass definition representing a range of values
+        to reclass to the same value
+        """
+        reclass = [((22, 24), 200)]
+        new_layer = geoprocessing.reclassify(self.reclass_geom,
+                                             NLCD_PATH, reclass)
+
+        # An inclusive range of values, present in the test data, should not
+        # exist after reclassification
+        self.assertFalse(np.any(new_layer == 22))
+        self.assertFalse(np.any(new_layer == 23))
+        self.assertFalse(np.any(new_layer == 24))
+
+        orig_counts = geoprocessing.count(self.reclass_geom, NLCD_PATH)[1]
+        old_count = orig_counts['22'] + orig_counts['23'] + orig_counts['24']
+
+        new_count = geoprocessing.masked_array_count(new_layer)[1]['200']
+
+        self.assertEqual(old_count, new_count)
+
 if __name__ == '__main__':
     unittest.main()
