@@ -181,6 +181,16 @@ output:
 }
 ```
 
+#### Requesting stats for a given area
+Apply the same request configuration to the `/stats/<min|max|mean|stddev>` endpoint to receive the result of that statistical analysis over the supplied `geom`:
+```json
+{
+  "stat": "stddev",
+  "time": 0.06605499999999997,
+  "value": 12.477841682004621
+}
+```
+
 #### Sample Rasters
 The 2011 NLCD is a 30m conterminous raster that is in an equal area projection (EPSG:5070).  It can be downloaded for free:
 

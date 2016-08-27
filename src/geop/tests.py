@@ -1,3 +1,5 @@
+from __future__ import division
+
 import unittest
 import geoprocessing
 import numpy as np
@@ -176,6 +178,44 @@ class RelassificationTests(unittest.TestCase):
         new_count = geoprocessing.masked_array_count(new_layer)[1]['200']
 
         self.assertEqual(old_count, new_count)
+
+
+class StatisticsTests(unittest.TestCase):
+    """
+    The statistics method is a shim over direct numpy methods and
+    is therefore not extensively tested.  These tests should ensure
+    that the method is proxying the right calls and generally working
+    """
+    stats_geom = Polygon([
+            [1747260.99651947943493724, 2071928.23170474520884454],
+            [1747260.99651947943493724, 2071884.15942327585071325],
+            [1747323.9569215786177665, 2071882.06074320594780147],
+            [1747321.85824150871485472, 2071927.53214472183026373],
+            [1747260.99651947943493724, 2071928.23170474520884454]])
+
+    geom_data = [11, 23, 24]
+
+    def test_mean(self):
+        """
+        Test that the statitistics method returns the right value for mean
+        """
+        mean = geoprocessing.statistics(self.stats_geom, NLCD_PATH, 'mean')
+        self.assertEqual(mean, sum(self.geom_data)/len(self.geom_data))
+
+    def test_min(self):
+        """
+        Test that the statitistics method returns the right value for min
+        """
+        min_val = geoprocessing.statistics(self.stats_geom, NLCD_PATH, 'min')
+        self.assertEqual(min_val, min(self.geom_data))
+
+    def test_not_implmented(self):
+        """
+        Tests that unimplemented stats operations raise
+        """
+        self.assertRaises(Exception, geoprocessing.statistics,
+                          self.stats_geom, NLCD_PATH, 'foo')
+
 
 if __name__ == '__main__':
     unittest.main()

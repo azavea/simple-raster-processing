@@ -223,3 +223,38 @@ def reclassify(geom, raster_path, substitutions):
         layer[expression] = new
 
     return layer
+
+
+def statistics(geom, raster_path, stat):
+    """
+    Computes the specified statistic over the values in raster_path that
+    intersect with geom
+
+    Args:
+        geom (Shapley Geometry): A polygon in the same SRS as `raster_path`
+            which will define the area of interest where the statistic
+            is calculated
+
+        raster_path (string): A  local file path to a geographic raster
+            containing values reclassify.
+
+        stat (string): The statistic to be calculated. Valid values:
+            mean, min, max, stddev
+
+    Returns
+        The single value of the statistical operation
+    """
+    # Read in the raster and mask geom on it
+    layer = mask_geom_on_raster(geom, raster_path)
+
+    # Determine the correct statistic requested
+    if stat == 'max':
+        return layer.max().item(0)
+    elif stat == 'min':
+        return layer.min().item(0)
+    elif stat == 'mean':
+        return layer.mean()
+    elif stat == 'stddev':
+        return layer.std()
+    else:
+        raise Exception("{0} has not been implemented".format(stat))
