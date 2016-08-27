@@ -141,3 +141,42 @@ def sample_at_point(geom, raster_path):
         value = value_gen.next().item(0)
 
     return value
+
+
+def weighted_overlay(geom, raster_paths, weights):
+    """
+    Performs a weighted overlay analysis on provided rasters within a given
+    area of interest. It is assumed that the provided rasters are already
+    classified to a shared preference scale.
+
+    Reference:
+       http://pro.arcgis.com/en/pro-app/tool-reference/spatial-analyst/weighted-overlay.htm  # noqa
+
+    Args:
+        geom (Shapley Geometry): A polygon in the same SRS as `raster_path`
+            which will define the area of interest in the weighted overlay
+
+        raster_paths (list<string>): A  list of local file paths to geographic
+            rasters containing values to weight and extract.
+
+        weights (list<float>): A list of weights to multiply values from the
+            corresponding index of  a raster in `raster_paths`.  The sum of
+            all elements in this list should equal 1
+
+    Returns:
+        Numpy masked array of the results of the combining and weighting of
+        the input rasters
+
+    """
+    # Read in rasters and mask geom on them
+    layers = [mask_geom_on_raster(geom, raster_path)
+              for raster_path in raster_paths]
+
+    # Multiply the weight for each layer across all cell values
+    weighted = [layer * weights[idx] for idx, layer in enumerate(layers)]
+
+    # Add the weighted layers together into a single layer
+    final = sum(weighted)
+    return final
+
+

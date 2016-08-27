@@ -1,11 +1,14 @@
 import unittest
 import geoprocessing
+import numpy as np
 
 from copy import copy
 from shapely.geometry import Point, Polygon
 
 NLCD_PATH = '../test_data/philly_nlcd.tif'
 NLCD_EDIT_PATH = '../test_data/philly_nlcd_edited.tif'
+NLCD_ONES = '../test_data/philly_ones.tif'      # all cells are 1
+NLCD_THREES = '../test_data/philly_threes.tif'  # all cells are 3
 
 
 class CountTests(unittest.TestCase):
@@ -75,7 +78,7 @@ class CountTests(unittest.TestCase):
         self.assertDictEqual(pairs, expectedPairs)
 
 
-class SampleTests(unittest.TestCase):
+class SamplingTests(unittest.TestCase):
     def test_xy(self):
         """
         Tests the value of a known point againt the NLCD raster
@@ -85,6 +88,31 @@ class SampleTests(unittest.TestCase):
         value = geoprocessing.sample_at_point(geom, NLCD_PATH)
 
         self.assertEqual(value, 11)
+
+
+class WeightedOverlayTests(unittest.TestCase):
+    def test_weighted_overlay(self):
+        """
+        Tests that rasters are appropriately weighted and summed
+        for the weighted overlay operation
+        """
+        geom = Polygon([
+            [1747032.24039185303263366, 2071990.49254682078026235],
+            [1747037.83687203959561884, 2071660.30021581239998341],
+            [1747416.29884465713985264, 2071660.99977583577856421],
+            [1747415.59928463399410248, 2071989.79298679763451219],
+            [1747032.24039185303263366, 2071990.49254682078026235]
+        ])
+
+        rasters = [NLCD_ONES, NLCD_THREES]
+        weights = [   0.75  ,    0.25    ]  # noqa
+
+        # Raster with all 1 values overlayed with all 3 values and their
+        # weights should produce a new layer with all cells having the
+        # value of `expected`
+        expected = 1 * weights[0] + 3 * weights[1]
+        layer = geoprocessing.weighted_overlay(geom, rasters, weights)
+        self.assertTrue(np.all(layer == expected))
 
 
 if __name__ == '__main__':
