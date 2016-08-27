@@ -15,6 +15,11 @@ $ docker-compose up
 ```
 The API is now exposed to your host on `:8080`
 
+Tests can be run directly from the VM:
+```bash
+$ docker-compose exec geop python tests.py
+```
+
 ### Examples
 #### Request a count
 
@@ -25,7 +30,7 @@ Request a frequency count of cell values around Philadelphia, PA. POST a JSON co
 ```bash
 curl -X POST -H "Content-Type: application/json" -d '{
     "rasters": ["nlcd/nlcd_2011_landcover_2011_edition_2014_10_10.img"],
-    "queryPolygon": 
+    "queryPolygon":
     {
         "type": "Polygon",
         "coordinates": [
