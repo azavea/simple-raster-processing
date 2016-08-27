@@ -1,11 +1,9 @@
 import time
-import numpy as np
-import rasterio
 
 from flask import Flask, request, jsonify
 
+import geoprocessing
 from errors import UserInputError
-from geo_utils import mask_geom_on_raster
 from request_utils import parse_config
 
 
@@ -22,24 +20,15 @@ def count():
     user_input = parse_config(request)
 
     start = time.clock()
-
     geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
     mods = user_input['mods']
 
-    masked_data = mask_geom_on_raster(geom, raster_path, mods)
-
-    # Perform count using numpy built-ins.  Compressing the masked array
-    # creates a 1D array of just unmasked values.  May be able to speed up
-    # by using scipy count_tier_group, but this is working well for now
-    values, counts = np.unique(masked_data.compressed(), return_counts=True)
-
-    # Make dict of val: count with string keys for valid json
-    count_map = dict(zip(map(str, values), counts))
+    total, count_map = geoprocessing.count(geom, raster_path, mods)
 
     return jsonify({
         'time': time.clock() - start,
-        'cellCount': masked_data.count(),
+        'cellCount': total,
         'counts': count_map,
     })
 
@@ -55,57 +44,9 @@ def pair_counts():
 
     start = time.clock()
     geom = user_input['query_polygon']
+    raster_paths = user_input['raster_paths']
 
-    # Read in two rasters and mask geom on both of them
-    layers = tuple(mask_geom_on_raster(geom, raster_path)
-                   for raster_path in user_input['raster_paths'])
-
-    # Take the two masked arrays, and stack them along the third axis
-    # Effectively: [[cell_1a, cell_1b], [cell_2a, cell_2b], ..],[[...]]
-    pairs = np.ma.dstack(layers)
-
-    # Get the array in 2D form
-    arr = pairs.reshape(-1, pairs.shape[-1])
-
-    # Remove Rows which have masked values
-    trim_arr = np.ma.compress_rowcols(arr, 0)
-
-    # Lexicographically sort so that repeated pairs follow one another
-    sorted_arr = trim_arr[np.lexsort(trim_arr.T), :]
-
-    # The difference between index n and n+1 in sorted_arr, for each index.
-    # Since it's sorted, repated entries will have a value of 0 at that index
-    diff_sort = np.diff(sorted_arr, axis=0)
-
-    # True or False value for each index of diff_sort where based on a diff_sort
-    # having truthy or falsey values.  Indexs with no change (0 values) will be
-    # represended as False in this array
-    indexes_changed_mask = np.any(diff_sort, 1)
-
-    # Get the indexes that are True, indicating an index of sorted_arr that has
-    # a difference with its preceeding value - ie, it represents a new occurance
-    # of a value
-    diff_indexes = np.where(indexes_changed_mask)[0]
-
-    # Get the rows at the diff indexes, these are unique at each index
-    unique_rows = [sorted_arr[i] for i in diff_indexes] + [sorted_arr[-1]]
-
-    # Prepend a -1 on the list of diff_indexes and append the index of the last
-    # unique row, resulting in an array of index changes with fenceposts on
-    # both sides.  ie, `[-1, ...list of diff indexes..., <idx of last sorted>]`
-    idx_of_last_val = sorted_arr.shape[0] - 1
-    diff_idx_with_start = np.insert(diff_indexes, 0, -1)
-    fencepost_diff_indexes = np.append(diff_idx_with_start, idx_of_last_val)
-
-    # Get the number of occurences of each unique row based on the difference
-    # between the indexes at which they change.  Since we put fenceposts up,
-    # we'll get a count for the first and last elements of the diff indexes
-    counts = np.diff(fencepost_diff_indexes)
-
-    # Map the pairs to the count, compressing values to keys in this format:
-    #   cell_r1::cell_r2
-    pair_counts = zip(unique_rows, counts)
-    pair_map = {str(k[0]) + '::' + str(k[1]): cnt for k, cnt in pair_counts}
+    pair_map = geoprocessing.count_pairs(geom, raster_paths)
 
     return jsonify({
         'time': time.clock() - start,
@@ -120,14 +61,12 @@ def xy():
 
     """
     user_input = parse_config(request)
+
     start = time.clock()
     geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
 
-    with rasterio.open(raster_path) as src:
-        # Sample the raster at the given coordinates
-        value_gen = src.sample([(geom.x, geom.y)], indexes=[1])
-        value = value_gen.next().item(0)
+    value = geoprocessing.sample_at_point(geom, raster_path)
 
     return jsonify({
         'time': time.clock() - start,
