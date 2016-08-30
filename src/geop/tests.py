@@ -2,15 +2,18 @@ from __future__ import division
 
 import unittest
 import geoprocessing
+import geo_utils
 import numpy as np
 
 from copy import copy
 from shapely.geometry import Point, Polygon
+from shapely.geometry.geo import box
 
 NLCD_PATH = '../test_data/philly_nlcd.tif'
 NLCD_EDIT_PATH = '../test_data/philly_nlcd_edited.tif'
 NLCD_ONES = '../test_data/philly_ones.tif'      # all cells are 1
 NLCD_THREES = '../test_data/philly_threes.tif'  # all cells are 3
+NLCD_LARGE = '../test_data/nlcd_large.tif'
 
 
 class CountTests(unittest.TestCase):
@@ -215,6 +218,39 @@ class StatisticsTests(unittest.TestCase):
         """
         self.assertRaises(Exception, geoprocessing.statistics,
                           self.stats_geom, NLCD_PATH, 'foo')
+
+
+class ImageTests(unittest.TestCase):
+    def test_decimated_read(self):
+        """
+        Test that a bounding box of greater than 256x256 is decimated to that
+        shape on read
+        """
+        tile_src = box(1582986.11448, 2088466.53022,
+                       1611281.91831, 2062319.77478)
+        tile, _ = geo_utils.tile_read(tile_src, NLCD_LARGE)
+        self.assertEqual(tile.shape, (256, 256))
+
+    def test_color_palette(self):
+        """
+        Test that a raster source ColorTable is converted to an RGB array
+        """
+        colormap = {
+            0: (100, 100, 100, 255),
+            99: (45, 45, 45, 255),
+            255: (75, 75, 75, 255)
+        }
+
+        class mock_reader():
+            def colormap(self, _):
+                return colormap
+
+        palette = geo_utils.color_table_to_palette(mock_reader())
+
+        # Test the the indexs of the palette match value + 3 (R,G & B)
+        self.assertItemsEqual(palette[0:3], colormap[0][0:3])
+        self.assertItemsEqual(palette[297:300], colormap[99][0:3])
+        self.assertItemsEqual(palette[765:768], colormap[255][0:3])
 
 
 if __name__ == '__main__':

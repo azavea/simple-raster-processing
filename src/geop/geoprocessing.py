@@ -2,7 +2,10 @@ import collections
 import numpy as np
 import rasterio
 
-from geo_utils import mask_geom_on_raster
+from PIL import Image
+from io import BytesIO
+
+from geo_utils import mask_geom_on_raster, tile_read
 
 
 def count(geom, raster_path, modifications=None):
@@ -235,7 +238,7 @@ def statistics(geom, raster_path, stat):
             which will define the area of interest where the statistic
             is calculated
 
-        raster_path (string): A  local file path to a geographic raster
+        raster_path (string): A local file path to a geographic raster
             containing values reclassify.
 
         stat (string): The statistic to be calculated. Valid values:
@@ -258,3 +261,26 @@ def statistics(geom, raster_path, stat):
         return layer.std()
     else:
         raise Exception("{0} has not been implemented".format(stat))
+
+
+def render_tile(geom, raster_path):
+    """
+    Generates a visual PNG map tile.
+
+
+    Args:
+        geom (Shapely Geometry): A polygon corresponding to a TMS tile
+            request boundary
+
+        raster_path (string): A local file path to a raster in EPSG:3857
+            to generate visual tile from
+
+    Returns:
+        Byte Array of image in the PNG format
+    """
+    tile, palette = tile_read(geom, raster_path)
+    img = Image.fromarray(tile, mode='P')
+    img.putpalette(palette)
+    img_data = BytesIO()
+    img.save(img_data, 'png')
+    return img_data

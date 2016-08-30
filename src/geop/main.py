@@ -1,9 +1,11 @@
 import time
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 
 import geoprocessing
+
 from errors import UserInputError
+from geo_utils import tile_to_bbox
 from request_utils import parse_config
 
 
@@ -91,6 +93,17 @@ def stats(stat):
         'stat': stat,
         'value': value
     })
+
+
+@app.route('/nlcd/<int:z>/<int:x>/<int:y>.png')
+def nlcd(z, x, y):
+    # This would need to otherwise be specified in a config.
+    # Requirements are EPSG:3857 and a color table
+    path = '/usr/data/nlcd/nlcd_webm.tif'
+    bbox = tile_to_bbox(z, x, y)
+    img = geoprocessing.render_tile(bbox, path)
+    img.seek(0)
+    return send_file(img, mimetype='image/png')
 
 
 @app.errorhandler(UserInputError)

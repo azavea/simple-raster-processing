@@ -1,7 +1,10 @@
+from __future__ import division
+
 from affine import Affine
 from functools import partial
 from rasterio import features
 from shapely.ops import transform
+from shapely.geometry.geo import box
 
 import numpy as np
 import pyproj
@@ -138,3 +141,87 @@ def reproject(geom, to_srs='epsg:5070', from_srs='epsg:4326'):
     )
 
     return transform(projection, geom)
+
+
+def color_table_to_palette(src):
+    """
+    Convert an RGBA raster color table to a PIL appropriate palette.
+
+    Args:
+        src (RasterioReader): An open raster reader that contains a colortable
+            of integer values mapped to RGB (or RGBA, though A will be ignored)
+
+    Returns:
+        ndarray of RGB sequences whose root index maps to a cell value.
+        ie (0,0,0,255,255,255) maps to 0: RGB(0,0,0), 1: (255, 255, 255)
+    """
+    color_len = 3
+    bit_len = 255
+    palette = np.zeros(bit_len * color_len + color_len, dtype=np.uint8)
+
+    for cell_val, rgb in src.colormap(1).iteritems():
+        for idx in range(color_len):
+            palette_index = cell_val * color_len + idx
+            palette[palette_index] = rgb[idx]
+
+    return palette
+
+
+def tile_read(geom, raster_path):
+    """
+    Decimated read against raster_path to fit into a 256x256 ndarry tile.
+    Resampling method is NEAREST NEIGHBOR and is not configurable.  This allows
+    for very high zoom level tiles to be rendered at reasonable performance
+    without chance of memory errors.
+
+    Args:
+        geom (Shapely Geometry): Polygon representing the geographic envelope
+            of the tile to be rendered
+
+        raster_path (string): Path to raster to read at geom.  Must be in
+            EPSG:3857.  If raster contains and integer ColorTable, a PIL
+            palette will be returned with those values
+
+    Returns:
+        ndarray of decimated read of source raster in a EPSG:3857 transformed
+            grid
+
+        palette (ndarray uint8) of RGB colors defined in raster ColorTable
+    """
+    tile_size = 256
+    with rasterio.open(raster_path) as src:
+        window, _ = get_window_and_affine(geom, src)
+        tile = src.read(1, window=window, out_shape=(1, tile_size, tile_size))
+
+        palette = color_table_to_palette(src)
+        return tile, palette
+
+
+def tile_to_bbox(zoom, x, y):
+    """
+    Transform a TMS/Slippy Map style tile protocol (z/x/y) to a web mercator
+    bounding box.
+
+    Ref:
+        https://github.com/IzAndCuddles/gdal2tiles/blob/structure/gdal2tiles.py#L120-L146  # noqa
+
+    Args:
+        zoom (int): Zoom level for the tile
+        x (int): x coordinate of tile origin
+        y (int): y coordinate of tile origin
+
+    Returns:
+        A Shapely geometry in EPSG:3857 defining the bounding box of the requested
+        tile
+    """
+    mapSize = 20037508.34789244 * 2
+    origin_x = -20037508.34789244
+    origin_y = 20037508.34789244
+    size = mapSize / 2**zoom
+
+    min_x = origin_x + x*size
+    min_y = origin_y - (y+1)*size
+    max_x = origin_x + (x+1)*size
+    max_y = origin_y - y*size
+
+    return box(min_x, min_y, max_x, max_y, ccw=False)
