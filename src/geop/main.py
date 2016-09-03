@@ -1,13 +1,9 @@
 import time
-import numpy as np
-import rasterio
 
 from flask import Flask, request, jsonify
-from rasterio import features
-from shapely.geometry import shape
 
+import geoprocessing
 from errors import UserInputError
-from geo_utils import get_window_and_affine, reproject
 from request_utils import parse_config
 
 
@@ -17,52 +13,83 @@ app = Flask(__name__)
 @app.route('/counts', methods=['POST'])
 def count():
     """
-    Perform a rudimentary cell count analysis on a portion of a
-    provided raster
+    Perform a cell count analysis on a portion of a provided raster.
+    If `modifications` is present on the input payload, apply those
+    modification values to the raster before peforming the count.
     """
     user_input = parse_config(request)
 
     start = time.clock()
-    geom = reproject(
-            shape(user_input['query_polygon']),
-            to_srs=user_input['srs'])
-
+    geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
+    mods = user_input['mods']
 
-    with rasterio.open(raster_path) as src:
-        # Read a chunk of the raster that contains the bounding box of the
-        # input geometry.  This has memory implications if that rectangle
-        # is large. The affine transformation maps geom coordinates to the
-        # image mask below.
-        window, shifted_affine = get_window_and_affine(geom, src)
-        data = src.read(1, window=window)
-
-    # Create a numpy array to mask cells which don't intersect with the
-    # polygon. Cells that intersect will have value of 0 (unmasked), the
-    # rest are filled with 1s (masked)
-    geom_mask = features.rasterize(
-        [(geom, 0)],
-        out_shape=data.shape,
-        transform=shifted_affine,
-        fill=1,
-        dtype=np.uint8,
-        all_touched=True
-    )
-
-    masked_data = np.ma.array(data=data, mask=geom_mask.astype(bool))
-
-    # Perform count using numpy built-ins.  Compressing the masked array
-    # creates a 1D array of just unmasked values.  May be able to speed up
-    # by using scipy count_tier_group, but this is working well for now
-    values, counts = np.unique(masked_data.compressed(), return_counts=True)
-
-    # Make dict of val: count with string keys for valid json
-    count_map = dict(zip(map(str, values), counts))
+    total, count_map = geoprocessing.count(geom, raster_path, mods)
 
     return jsonify({
         'time': time.clock() - start,
-        'cellCount': masked_data.count(),
+        'cellCount': total,
         'counts': count_map,
+    })
+
+
+@app.route('/pair-counts', methods=['POST'])
+def pair_counts():
+    """
+    For a pair of rasters whose extents and srs match, count cell pairs that
+    occur when the rasters are stacked.  This resembles the geoprocessing
+    required to run TR-55.  At present, this does not accept modifications.
+    """
+    user_input = parse_config(request)
+
+    start = time.clock()
+    geom = user_input['query_polygon']
+    raster_paths = user_input['raster_paths']
+
+    pair_map = geoprocessing.count_pairs(geom, raster_paths)
+
+    return jsonify({
+        'time': time.clock() - start,
+        'pairs': pair_map
+    })
+
+
+@app.route('/xy', methods=['POST'])
+def xy():
+    """
+    Get the cell value for a given GeoJSON point.
+    """
+    user_input = parse_config(request)
+
+    start = time.clock()
+    geom = user_input['query_polygon']
+    raster_path = user_input['raster_paths'][0]
+
+    value = geoprocessing.sample_at_point(geom, raster_path)
+
+    return jsonify({
+        'time': time.clock() - start,
+        'value': value
+    })
+
+
+@app.route('/stats/<stat>', methods=['POST'])
+def stats(stat):
+    """
+    Return basic statistics for query window
+    """
+    user_input = parse_config(request)
+
+    start = time.clock()
+    geom = user_input['query_polygon']
+    raster_path = user_input['raster_paths'][0]
+
+    value = geoprocessing.statistics(geom, raster_path, stat)
+
+    return jsonify({
+        'time': time.clock() - start,
+        'stat': stat,
+        'value': value
     })
 
 
