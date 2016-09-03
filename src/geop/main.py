@@ -58,7 +58,6 @@ def pair_counts():
 def xy():
     """
     Get the cell value for a given GeoJSON point.
-
     """
     user_input = parse_config(request)
 
@@ -70,6 +69,26 @@ def xy():
 
     return jsonify({
         'time': time.clock() - start,
+        'value': value
+    })
+
+
+@app.route('/stats/<stat>', methods=['POST'])
+def stats(stat):
+    """
+    Return basic statistics for query window
+    """
+    user_input = parse_config(request)
+
+    start = time.clock()
+    geom = user_input['query_polygon']
+    raster_path = user_input['raster_paths'][0]
+
+    value = geoprocessing.statistics(geom, raster_path, stat)
+
+    return jsonify({
+        'time': time.clock() - start,
+        'stat': stat,
         'value': value
     })
 

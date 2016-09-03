@@ -1,3 +1,4 @@
+import collections
 import numpy as np
 import rasterio
 
@@ -34,7 +35,10 @@ def count(geom, raster_path, modifications=None):
     """
 
     masked_data = mask_geom_on_raster(geom, raster_path, modifications)
+    return masked_array_count(masked_data)
 
+
+def masked_array_count(masked_data):
     # Perform count using numpy built-ins.  Compressing the masked array
     # creates a 1D array of just unmasked values.  May be able to speed up
     # by using scipy count_tier_group, but this is working well for now
@@ -141,3 +145,116 @@ def sample_at_point(geom, raster_path):
         value = value_gen.next().item(0)
 
     return value
+
+
+def weighted_overlay(geom, raster_paths, weights):
+    """
+    Performs a weighted overlay analysis on provided rasters within a given
+    area of interest. It is assumed that the provided rasters are already
+    classified to a shared preference scale.
+
+    Reference:
+       http://pro.arcgis.com/en/pro-app/tool-reference/spatial-analyst/weighted-overlay.htm  # noqa
+
+    Args:
+        geom (Shapley Geometry): A polygon in the same SRS as `raster_path`
+            which will define the area of interest in the weighted overlay
+
+        raster_paths (list<string>): A  list of local file paths to geographic
+            rasters containing values to weight and extract.
+
+        weights (list<float>): A list of weights to multiply values from the
+            corresponding index of  a raster in `raster_paths`.  The sum of
+            all elements in this list should equal 1
+
+    Returns:
+        Numpy masked array of the results of the combining and weighting of
+        the input rasters
+
+    """
+    # Read in rasters and mask geom on them
+    layers = [mask_geom_on_raster(geom, raster_path)
+              for raster_path in raster_paths]
+
+    # Multiply the weight for each layer across all cell values
+    weighted = [layer * weights[idx] for idx, layer in enumerate(layers)]
+
+    # Add the weighted layers together into a single layer
+    final = sum(weighted)
+    return final
+
+
+def reclassify(geom, raster_path, substitutions):
+    """
+    Reclassifies a raster by substituting all occurences of a value or range of
+    values with another provided value.  Substitutions are applied in order.
+
+    Args:
+        geom (Shapley Geometry): A polygon in the same SRS as `raster_path`
+            which will define the area of interest where the reclass is applied
+
+        raster_path (string): A  local file path to a geographic raster
+            containing values reclassify.
+
+        substitutions (list<[oldVal, newval]>): A list of pairs whose first
+            index represents the old value to be replaced with the value in
+            the second index.  If oldVal is an iterable, it will create an
+            inclusive range of values for reclassification:
+               [11, 1]: all 11 values will be replaced by 1
+               [[90,99], 9]: all values >= 90 & <=99 will be replaced by 9
+
+    Returns:
+        Numpy masked array of the results of making the changes defined for
+        all cells represented by `substitutions`
+    """
+    # Read in the raster and mask geom on it
+    layer = mask_geom_on_raster(geom, raster_path)
+
+    # For every range or direct replacement, copy over existing values
+    for reclass in substitutions:
+        old, new = reclass
+
+        if isinstance(old, collections.Iterable):
+            low, high = old
+            expression = np.ma.where((low <= layer) & (layer <= high))
+        else:
+            expression = np.ma.where(old == layer)
+
+        layer[expression] = new
+
+    return layer
+
+
+def statistics(geom, raster_path, stat):
+    """
+    Computes the specified statistic over the values in raster_path that
+    intersect with geom
+
+    Args:
+        geom (Shapley Geometry): A polygon in the same SRS as `raster_path`
+            which will define the area of interest where the statistic
+            is calculated
+
+        raster_path (string): A  local file path to a geographic raster
+            containing values reclassify.
+
+        stat (string): The statistic to be calculated. Valid values:
+            mean, min, max, stddev
+
+    Returns
+        The single value of the statistical operation
+    """
+    # Read in the raster and mask geom on it
+    layer = mask_geom_on_raster(geom, raster_path)
+
+    # Determine the correct statistic requested
+    if stat == 'max':
+        return layer.max().item(0)
+    elif stat == 'min':
+        return layer.min().item(0)
+    elif stat == 'mean':
+        return layer.mean()
+    elif stat == 'stddev':
+        return layer.std()
+    else:
+        raise Exception("{0} has not been implemented".format(stat))
