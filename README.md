@@ -15,6 +15,11 @@ $ docker-compose up
 ```
 The API is now exposed to your host on `:8080`
 
+Tests can be run directly from the VM:
+```bash
+$ docker-compose exec geop python tests.py
+```
+
 ### Examples
 #### Request a count
 
@@ -25,7 +30,7 @@ Request a frequency count of cell values around Philadelphia, PA. POST a JSON co
 ```bash
 curl -X POST -H "Content-Type: application/json" -d '{
     "rasters": ["nlcd/nlcd_2011_landcover_2011_edition_2014_10_10.img"],
-    "queryPolygon": 
+    "queryPolygon":
     {
         "type": "Polygon",
         "coordinates": [
@@ -173,6 +178,16 @@ output:
 {
   "time": 0.034891000000000005,
   "value": 11
+}
+```
+
+#### Requesting stats for a given area
+Apply the same request configuration to the `/stats/<min|max|mean|stddev>` endpoint to receive the result of that statistical analysis over the supplied `geom`:
+```json
+{
+  "stat": "stddev",
+  "time": 0.06605499999999997,
+  "value": 12.477841682004621
 }
 ```
 
