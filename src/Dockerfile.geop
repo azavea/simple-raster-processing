@@ -19,6 +19,7 @@ RUN \
                  libgdal-dev
 
 COPY ./geop /usr/src/geop
+COPY ./geop /usr/src/test_data
 
 WORKDIR /usr/src/geop
 

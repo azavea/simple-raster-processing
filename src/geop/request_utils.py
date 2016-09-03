@@ -1,5 +1,7 @@
 import os
+from shapely.geometry import shape
 
+from geo_utils import reproject
 from errors import UserInputError
 
 DATA_PATH = '/usr/data/'
@@ -40,10 +42,20 @@ def parse_config(request):
 
         srs = req_config.get('src_srs', DEFAULT_SRS)
 
+        # Reproject the required input query polygon
+        query_polygon_srs = reproject(shape(query_polygon), srs)
+
+        # Modifications are optional, reproject if any exist
+        mods = req_config.get('modifications', None)
+        if mods:
+            for mod in mods:
+                mod['geom'] = reproject(shape(mod['geom']), srs)
+
         return {
-            'query_polygon': query_polygon,
+            'query_polygon': query_polygon_srs,
             'raster_paths': raster_paths,
             'srs': srs,
+            'mods': mods,
         }
 
     raise UserInputError('JSON config is required in body')
