@@ -158,13 +158,15 @@ def color_table_to_palette(src):
     color_len = 3
     bit_len = 255
     palette = np.zeros(bit_len * color_len + color_len, dtype=np.uint8)
+    try:
+        for cell_val, rgb in src.colormap(1).iteritems():
+            for idx in range(color_len):
+                palette_index = cell_val * color_len + idx
+                palette[palette_index] = rgb[idx]
 
-    for cell_val, rgb in src.colormap(1).iteritems():
-        for idx in range(color_len):
-            palette_index = cell_val * color_len + idx
-            palette[palette_index] = rgb[idx]
-
-    return palette
+        return palette
+    except ValueError:
+        return None
 
 
 def tile_read(geom, raster_path):

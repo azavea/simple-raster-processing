@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, send_file
 import geoprocessing
 
 from errors import UserInputError
-from geo_utils import tile_to_bbox
+from geo_utils import tile_to_bbox, tile_read
 from request_utils import parse_config
 
 
@@ -101,8 +101,25 @@ def nlcd(z, x, y):
     # Requirements are EPSG:3857 and a color table
     path = '/usr/data/nlcd/nlcd_webm.tif'
     bbox = tile_to_bbox(z, x, y)
+
     img = geoprocessing.render_tile(bbox, path)
-    img.seek(0)
+    return send_file(img, mimetype='image/png')
+
+
+@app.route('/nlcd-grouped/<int:z>/<int:x>/<int:y>.png')
+def reclass_tile(z, x, y):
+    # This would need to otherwise be specified in a config.
+    # Requirements are EPSG:3857 and a color table
+    path = '/usr/data/nlcd/nlcd_webm.tif'
+    bbox = tile_to_bbox(z, x, y)
+    tile, palette = tile_read(bbox, path)
+    # Reclassify the nlcd data to be in related groups
+    substitutions = [[(21, 24), 23], [(41, 52), 41], [(51, 74), 71],
+                     [(81, 82), 81], [(90, 95), 11]]
+    geoprocessing.reclassify_from_data(tile, substitutions)
+
+    # Render new tiles using the reclassified nlcd data
+    img = geoprocessing.render_tile_from_data(tile, palette)
     return send_file(img, mimetype='image/png')
 
 

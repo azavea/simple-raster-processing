@@ -212,7 +212,10 @@ def reclassify(geom, raster_path, substitutions):
     """
     # Read in the raster and mask geom on it
     layer = mask_geom_on_raster(geom, raster_path)
+    return reclassify_from_data(layer, substitutions)
 
+
+def reclassify_from_data(layer, substitutions):
     # For every range or direct replacement, copy over existing values
     for reclass in substitutions:
         old, new = reclass
@@ -265,8 +268,7 @@ def statistics(geom, raster_path, stat):
 
 def render_tile(geom, raster_path):
     """
-    Generates a visual PNG map tile.
-
+    Generates a visual PNG map tile from a vector polygon
 
     Args:
         geom (Shapely Geometry): A polygon corresponding to a TMS tile
@@ -279,8 +281,27 @@ def render_tile(geom, raster_path):
         Byte Array of image in the PNG format
     """
     tile, palette = tile_read(geom, raster_path)
+    return render_tile_from_data(tile, palette)
+
+
+def render_tile_from_data(tile, palette):
+    """
+    Generates a visual PNG map tile from an ndarray of raster data
+
+    Args:
+        tile (ndarray) : A square 256x256 array of raster values
+
+        palette (list<int>): A list of RGB values to render `tile`
+
+    Returns:
+        Byte Array of image in the PNG format
+    """
     img = Image.fromarray(tile, mode='P')
-    img.putpalette(palette)
+
+    if len(palette):
+        img.putpalette(palette)
+
     img_data = BytesIO()
     img.save(img_data, 'png')
+    img_data.seek(0)
     return img_data

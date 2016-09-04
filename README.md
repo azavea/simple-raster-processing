@@ -197,10 +197,14 @@ Currently, a hard coded path to the NLCD raster, reprojected into EPSG:3857 (web
 
 You'll need a file name `nlcd/nlcd_webm.tif` in the `DATA_DIR` to use this endpoint. It will render resampled tiles as overlays for a common Leaflet map, using the default color scheme defined inside of the raster as a ColorTable.
 
+To do some processing on a visual tile before rendering, try the example endpoint:
+`http://localhost:8080/nlcd-grouped/{z}/{x}/{y}.png`
+which reclassifies NLCD codes into aggregate groups on the fly before rendering.
+
 To test, try the following:
 * Visit [http://geojson.io](http://geojson.io)
 * Meta -> Add Map Layer
-* Paste in the above URL template into the box
+* Paste in one of the above URL templates into the box
 * Browse the continental USA to see the overlay applied
 
 #### Sample Rasters
