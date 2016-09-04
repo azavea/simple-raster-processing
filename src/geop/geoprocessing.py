@@ -179,6 +179,10 @@ def weighted_overlay(geom, raster_paths, weights):
     layers = [mask_geom_on_raster(geom, raster_path)
               for raster_path in raster_paths]
 
+    return weighted_overlay_from_data(layers, weights)
+
+
+def weighted_overlay_from_data(layers, weights):
     # Multiply the weight for each layer across all cell values
     weighted = [layer * weights[idx] for idx, layer in enumerate(layers)]
 
@@ -266,7 +270,7 @@ def statistics(geom, raster_path, stat):
         raise Exception("{0} has not been implemented".format(stat))
 
 
-def render_tile(geom, raster_path):
+def render_tile(geom, raster_path, user_palette):
     """
     Generates a visual PNG map tile from a vector polygon
 
@@ -277,11 +281,14 @@ def render_tile(geom, raster_path):
         raster_path (string): A local file path to a raster in EPSG:3857
             to generate visual tile from
 
+        uer_palette (optional list): A sequence of RGB triplets whose index
+            corresponds to the raster value which will be rendered. If
+            provided, will override a ColorTable defined in the raster
     Returns:
         Byte Array of image in the PNG format
     """
     tile, palette = tile_read(geom, raster_path)
-    return render_tile_from_data(tile, palette)
+    return render_tile_from_data(tile, user_palette or palette)
 
 
 def render_tile_from_data(tile, palette):
