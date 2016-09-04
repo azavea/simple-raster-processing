@@ -32,7 +32,7 @@ def count(geom, raster_path, modifications=None):
     Returns:
         total (int): total number of cells included in census
 
-        count_map (dict): cell value keys with count of number of occurences
+        count_map (dict): cell value keys with count of number of occurrences
             within the raster masked by `geom`
 
     """
@@ -66,7 +66,7 @@ def count_pairs(geom, raster_paths):
             containing values to group and count.
 
     Returns:
-        pairs (dict): Grouped pairs as key with count of number of occurences
+        pairs (dict): Grouped pairs as key with count of number of occurrences
             within the two rasters masked by geom
             ex:  { cell1_rastA::cell1_rastB: 42 }
     """
@@ -89,17 +89,17 @@ def count_pairs(geom, raster_paths):
     sorted_arr = trim_arr[np.lexsort(trim_arr.T), :]
 
     # The difference between index n and n+1 in sorted_arr, for each index.
-    # Since it's sorted, repated entries will have a value of 0 at that index
+    # Since it's sorted, repeated entries will have a value of 0 at that index
     diff_sort = np.diff(sorted_arr, axis=0)
 
     # True or False value for each index of diff_sort based on a diff_sort
-    # having truthy or falsey values.  Indexs with no change (0 values) will be
-    # represended as False in this array
+    # having truthy or falsey values.  Indexes with no change (0 values) will
+    # be represented as False in this array
     indexes_changed_mask = np.any(diff_sort, 1)
 
     # Get the indexes that are True, indicating an index of sorted_arr that has
-    # a difference with its preceeding value - ie, it represents a new
-    # occurance of a value
+    # a difference with its preceding value - ie, it represents a new
+    # occurrence of a value
     diff_indexes = np.where(indexes_changed_mask)[0]
 
     # Get the rows at the diff indexes, these are unique at each index
@@ -112,7 +112,7 @@ def count_pairs(geom, raster_paths):
     diff_idx_with_start = np.insert(diff_indexes, 0, -1)
     fencepost_diff_indexes = np.append(diff_idx_with_start, idx_of_last_val)
 
-    # Get the number of occurences of each unique row based on the difference
+    # Get the number of occurrences of each unique row based on the difference
     # between the indexes at which they change.  Since we put fenceposts up,
     # we'll get a count for the first and last elements of the diff indexes
     counts = np.diff(fencepost_diff_indexes)

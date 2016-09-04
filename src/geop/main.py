@@ -18,7 +18,7 @@ def count():
     """
     Perform a cell count analysis on a portion of a provided raster.
     If `modifications` is present on the input payload, apply those
-    modification values to the raster before peforming the count.
+    modification values to the raster before performing the count.
     """
     user_input = parse_config(request)
 
@@ -97,15 +97,21 @@ def stats(stat):
 
 
 @app.route('/<layer>/<int:z>/<int:x>/<int:y>.png')
-def nlcd(layer, z, x, y):
+def layer_tile(layer, z, x, y):
+    """
+    Given a known layer, render the tile at z/x/y with an embedded color table
+    or a user defined color palette
+    """
     # This would need to otherwise be specified in a config.
-    # Requirements are EPSG:3857 and a color table
+    # Requirements are EPSG:3857
     user_palette = None
     if layer == 'nlcd':
         path = '/usr/data/nlcd/nlcd_webm.tif'
     elif layer == 'soil':
         path = '/usr/data/hydro_soils_webm.tif'
         user_palette = [255,255,255, 255,255,212, 254,227,145, 204,76,2, 140,45,4, 254,196,79, 254,153,41, 236,112,20]  # noqa
+    else:
+        raise UserInputError('No layer {0} is registered.'.format(layer))
 
     bbox = tile_to_bbox(z, x, y)
 
@@ -115,6 +121,9 @@ def nlcd(layer, z, x, y):
 
 @app.route('/nlcd-grouped/<int:z>/<int:x>/<int:y>.png')
 def reclass_tile(z, x, y):
+    """
+    On the fly reclassification of NLCD values into groups
+    """
     # This would need to otherwise be specified in a config.
     # Requirements are EPSG:3857 and a color table
     path = '/usr/data/nlcd/nlcd_webm.tif'
@@ -134,8 +143,8 @@ def reclass_tile(z, x, y):
 def priority(z, x, y):
     """
     A contrived prioritization analysis to identify areas where Green
-    Stormwater Infrastructure projects would have the most benifit. This
-    demonstrats chaining a few geoprocessing tasks together:  First, two
+    Stormwater Infrastructure projects would have the most benefit. This
+    demonstrates chaining a few geoprocessing tasks together:  First, two
     layers are reclassified into normalized priority scores, which are then
     applied to a weighted overlay, determining an overall priority score. This
     final layer is then rendered visually to denote where GSI projects could
@@ -160,7 +169,7 @@ def priority(z, x, y):
     nlcd_reclass = [[11, 0], [(21, 24), 10], [31, 7], [(41, 43), 1],
                     [(51, 52), 6], [(71, 74), 4], [(81, 82), 5], [(90, 95), 2]]
 
-    # Soil values aren't linearly worse, 3&4 have slowest infiltration,
+    # Soil values aren't linearly worse, 3&4 have the slowest infiltration,
     # followed by 6&7.  Ordering is important so a reclassed value doesn't
     # get reclassed again by a subsequent rule
     soil_reclass = [[255, 0], [3, 8], [4, 10], [(6, 7), 8], [5, 6], [2, 5]]
@@ -171,13 +180,14 @@ def priority(z, x, y):
     # Use the two relative priority layers and weight them, giving the NLCD
     # layer more weight when determining an overall priority map.  The result
     # is a layer with values of 0 - 10 that identifies areas more in need
-    # of Green Stormwater Infrastructure projects
+    # of Green Stormwater Infrastructure projects, based on the defined
+    # scores and preferences.
     layers = [nlcd_priority, soil_priority]
     weights = [0.65, 0.35]
     priority = geoprocessing.weighted_overlay_from_data(layers, weights)
 
     # The weighted overlay will produce floats, but for rendering purposes we
-    # can round to ints so that we can create a straighforward palette
+    # can round to ints so that we can create a straightforward palette
     priority_rounded = priority.astype(np.uint8)
 
     # A color palette from 0 (white -> green) to 10 (red) for our overall
