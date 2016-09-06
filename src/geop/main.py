@@ -106,9 +106,9 @@ def layer_tile(layer, z, x, y):
     # Requirements are EPSG:3857
     user_palette = None
     if layer == 'nlcd':
-        path = '/usr/data/nlcd/nlcd_webm.tif'
+        path = '/usr/data/nlcd/nlcd_webm_512.tif'
     elif layer == 'soil':
-        path = '/usr/data/hydro_soils_webm.tif'
+        path = '/usr/data/hydro_soils_webm_512.tif'
         user_palette = [255,255,255, 255,255,212, 254,227,145, 204,76,2, 140,45,4, 254,196,79, 254,153,41, 236,112,20]  # noqa
     else:
         raise UserInputError('No layer {0} is registered.'.format(layer))
@@ -126,7 +126,7 @@ def reclass_tile(z, x, y):
     """
     # This would need to otherwise be specified in a config.
     # Requirements are EPSG:3857 and a color table
-    path = '/usr/data/nlcd/nlcd_webm.tif'
+    path = '/usr/data/nlcd/nlcd_webm_512.tif'
     bbox = tile_to_bbox(z, x, y)
     tile, palette = tile_read(bbox, path)
     # Reclassify the nlcd data to be in related groups
@@ -154,8 +154,8 @@ def priority(z, x, y):
     """
     # This would need to otherwise be specified in a config.
     # Requirements are EPSG:3857
-    nlcd_path = '/usr/data/nlcd/nlcd_webm.tif'
-    soil_path = '/usr/data/hydro_soils_webm.tif'
+    nlcd_path = '/usr/data/nlcd/nlcd_webm_512.tif'
+    soil_path = '/usr/data/hydro_soils_webm_512.tif'
 
     # Decimated read for the bbox of each layer.
     bbox = tile_to_bbox(z, x, y)
