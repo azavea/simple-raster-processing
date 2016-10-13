@@ -191,6 +191,22 @@ Apply the same request configuration to the `/stats/<min|max|mean|stddev>` endpo
 }
 ```
 
+#### Rendering a raster as image tiles
+Currently, a hard coded path to the NLCD raster, reprojected into EPSG:3857 (web mercator) is used at the endpoint:
+`http://localhost:8080/nlcd/{z}/{x}/{y}.png`
+
+You'll need a file name `nlcd/nlcd_webm.tif` in the `DATA_DIR` to use this endpoint. It will render resampled tiles as overlays for a common Leaflet map, using the default color scheme defined inside of the raster as a ColorTable.
+
+To do some processing on a visual tile before rendering, try the example endpoint:
+`http://localhost:8080/nlcd-grouped/{z}/{x}/{y}.png`
+which reclassifies NLCD codes into aggregate groups on the fly before rendering.
+
+To test, try the following:
+* Visit [http://geojson.io](http://geojson.io)
+* Meta -> Add Map Layer
+* Paste in one of the above URL templates into the box
+* Browse the continental USA to see the overlay applied
+
 #### Sample Rasters
 The 2011 NLCD is a 30m conterminous raster that is in an equal area projection (EPSG:5070).  It can be downloaded for free:
 

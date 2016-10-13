@@ -2,7 +2,10 @@ import collections
 import numpy as np
 import rasterio
 
-from geo_utils import mask_geom_on_raster
+from PIL import Image
+from io import BytesIO
+
+from geo_utils import mask_geom_on_raster, tile_read
 
 
 def count(geom, raster_path, modifications=None):
@@ -29,7 +32,7 @@ def count(geom, raster_path, modifications=None):
     Returns:
         total (int): total number of cells included in census
 
-        count_map (dict): cell value keys with count of number of occurences
+        count_map (dict): cell value keys with count of number of occurrences
             within the raster masked by `geom`
 
     """
@@ -63,7 +66,7 @@ def count_pairs(geom, raster_paths):
             containing values to group and count.
 
     Returns:
-        pairs (dict): Grouped pairs as key with count of number of occurences
+        pairs (dict): Grouped pairs as key with count of number of occurrences
             within the two rasters masked by geom
             ex:  { cell1_rastA::cell1_rastB: 42 }
     """
@@ -86,17 +89,17 @@ def count_pairs(geom, raster_paths):
     sorted_arr = trim_arr[np.lexsort(trim_arr.T), :]
 
     # The difference between index n and n+1 in sorted_arr, for each index.
-    # Since it's sorted, repated entries will have a value of 0 at that index
+    # Since it's sorted, repeated entries will have a value of 0 at that index
     diff_sort = np.diff(sorted_arr, axis=0)
 
     # True or False value for each index of diff_sort based on a diff_sort
-    # having truthy or falsey values.  Indexs with no change (0 values) will be
-    # represended as False in this array
+    # having truthy or falsey values.  Indexes with no change (0 values) will
+    # be represented as False in this array
     indexes_changed_mask = np.any(diff_sort, 1)
 
     # Get the indexes that are True, indicating an index of sorted_arr that has
-    # a difference with its preceeding value - ie, it represents a new
-    # occurance of a value
+    # a difference with its preceding value - ie, it represents a new
+    # occurrence of a value
     diff_indexes = np.where(indexes_changed_mask)[0]
 
     # Get the rows at the diff indexes, these are unique at each index
@@ -109,7 +112,7 @@ def count_pairs(geom, raster_paths):
     diff_idx_with_start = np.insert(diff_indexes, 0, -1)
     fencepost_diff_indexes = np.append(diff_idx_with_start, idx_of_last_val)
 
-    # Get the number of occurences of each unique row based on the difference
+    # Get the number of occurrences of each unique row based on the difference
     # between the indexes at which they change.  Since we put fenceposts up,
     # we'll get a count for the first and last elements of the diff indexes
     counts = np.diff(fencepost_diff_indexes)
@@ -176,6 +179,10 @@ def weighted_overlay(geom, raster_paths, weights):
     layers = [mask_geom_on_raster(geom, raster_path)
               for raster_path in raster_paths]
 
+    return weighted_overlay_from_data(layers, weights)
+
+
+def weighted_overlay_from_data(layers, weights):
     # Multiply the weight for each layer across all cell values
     weighted = [layer * weights[idx] for idx, layer in enumerate(layers)]
 
@@ -209,7 +216,10 @@ def reclassify(geom, raster_path, substitutions):
     """
     # Read in the raster and mask geom on it
     layer = mask_geom_on_raster(geom, raster_path)
+    return reclassify_from_data(layer, substitutions)
 
+
+def reclassify_from_data(layer, substitutions):
     # For every range or direct replacement, copy over existing values
     for reclass in substitutions:
         old, new = reclass
@@ -235,7 +245,7 @@ def statistics(geom, raster_path, stat):
             which will define the area of interest where the statistic
             is calculated
 
-        raster_path (string): A  local file path to a geographic raster
+        raster_path (string): A local file path to a geographic raster
             containing values reclassify.
 
         stat (string): The statistic to be calculated. Valid values:
@@ -258,3 +268,47 @@ def statistics(geom, raster_path, stat):
         return layer.std()
     else:
         raise Exception("{0} has not been implemented".format(stat))
+
+
+def render_tile(geom, raster_path, user_palette):
+    """
+    Generates a visual PNG map tile from a vector polygon
+
+    Args:
+        geom (Shapely Geometry): A polygon corresponding to a TMS tile
+            request boundary
+
+        raster_path (string): A local file path to a raster in EPSG:3857
+            to generate visual tile from
+
+        uer_palette (optional list): A sequence of RGB triplets whose index
+            corresponds to the raster value which will be rendered. If
+            provided, will override a ColorTable defined in the raster
+    Returns:
+        Byte Array of image in the PNG format
+    """
+    tile, palette = tile_read(geom, raster_path)
+    return render_tile_from_data(tile, user_palette or palette)
+
+
+def render_tile_from_data(tile, palette):
+    """
+    Generates a visual PNG map tile from an ndarray of raster data
+
+    Args:
+        tile (ndarray) : A square 256x256 array of raster values
+
+        palette (list<int>): A list of RGB values to render `tile`
+
+    Returns:
+        Byte Array of image in the PNG format
+    """
+    img = Image.fromarray(tile, mode='P')
+
+    if len(palette):
+        img.putpalette(palette)
+
+    img_data = BytesIO()
+    img.save(img_data, 'png')
+    img_data.seek(0)
+    return img_data
