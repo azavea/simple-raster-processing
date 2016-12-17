@@ -6,19 +6,8 @@ ENV GDAL_VERSION 2.1.2
 
 RUN \
       apt-get update && apt-get install -y --no-install-recommends \
-              wget \
               build-essential \
-              python-dev \
-              libgeos-dev \
-              libexpat1 \
       && rm -rf /var/lib/apt/lists/*
-
-RUN \
-      wget -qO- http://download.osgeo.org/gdal/${GDAL_VERSION}/gdal-${GDAL_VERSION}.tar.gz \
-      | tar -xzC /usr/src \
-      && cd /usr/src/gdal-${GDAL_VERSION} \
-      && ./configure --with-python \
-      && make install
 
 COPY requirements.txt /tmp/
 
@@ -30,9 +19,7 @@ RUN \
 
 RUN \
       apt-get purge -y --auto-remove \
-                 python-dev \
-                 build-essential \
-                 wget
+                 build-essential
 
 # VSI S3 urls trigger CURL error: error setting certificate verify locations
 RUN \

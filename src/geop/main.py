@@ -107,6 +107,8 @@ def layer_tile(layer, z, x, y):
     user_palette = None
     if layer == 'nlcd':
         path = '/usr/data/nlcd/nlcd_webm_512.tif'
+    elif layer == 'nlcd_s3':
+        path = 's3://simple-raster-processing/nlcd_webm_512.tif'
     elif layer == 'soil':
         path = '/usr/data/hydro_soils_webm_512.tif'
         user_palette = [255,255,255, 255,255,212, 254,227,145, 204,76,2, 140,45,4, 254,196,79, 254,153,41, 236,112,20]  # noqa

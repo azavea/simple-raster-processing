@@ -9,6 +9,9 @@ DEFAULT_SRS = 'epsg:5070'
 
 
 def get_path(raster_name):
+    if raster_name[:2] == 's3':
+        return raster_name
+
     raster_path = os.path.join(DATA_PATH, raster_name)
     if not os.path.isfile(raster_path):
         raise UserInputError(

@@ -4,4 +4,4 @@ numpy==1.11.1
 rasterio[s3]==1.0a4
 requests==2.10.0
 scipy==0.18
-shapely==1.5.15
+shapely==1.6b2
