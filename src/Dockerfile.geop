@@ -2,11 +2,23 @@ FROM quay.io/azavea/flask:0.11
 
 MAINTAINER Azavea
 
+ENV GDAL_VERSION 2.1.2
+
 RUN \
       apt-get update && apt-get install -y --no-install-recommends \
-              gdal-bin \
-              libgdal-dev \
+              wget \
+              build-essential \
+              python-dev \
+              libgeos-dev \
+              libexpat1 \
       && rm -rf /var/lib/apt/lists/*
+
+RUN \
+      wget -qO- http://download.osgeo.org/gdal/${GDAL_VERSION}/gdal-${GDAL_VERSION}.tar.gz \
+      | tar -xzC /usr/src \
+      && cd /usr/src/gdal-${GDAL_VERSION} \
+      && ./configure --with-python \
+      && make install
 
 COPY requirements.txt /tmp/
 
@@ -14,9 +26,18 @@ RUN \
       pip install --no-cache-dir \
           numpy==$(grep "numpy" /tmp/requirements.txt | cut -d= -f3) \
       && pip install --no-cache-dir -r /tmp/requirements.txt \
-      && rm /tmp/requirements.txt \
-      && apt-get purge -y --auto-remove \
-                 libgdal-dev
+      && rm /tmp/requirements.txt
+
+RUN \
+      apt-get purge -y --auto-remove \
+                 python-dev \
+                 build-essential \
+                 wget
+
+# VSI S3 urls trigger CURL error: error setting certificate verify locations
+RUN \
+      mkdir -p /etc/pki/tls/certs/ \
+      && ln -s /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt
 
 COPY ./geop /usr/src/geop
 COPY ./geop /usr/src/test_data
