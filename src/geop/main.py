@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify, send_file
 import numpy as np
 
 import geoprocessing
+import tiles
 
 from errors import UserInputError
 from geo_utils import tile_to_bbox, tile_read
@@ -117,7 +118,7 @@ def layer_tile(layer, z, x, y):
 
     bbox = tile_to_bbox(z, x, y)
 
-    img = geoprocessing.render_tile(bbox, path, user_palette)
+    img = tiles.render_tile(bbox, path, user_palette)
     return send_file(img, mimetype='image/png')
 
 
@@ -137,7 +138,7 @@ def reclass_tile(z, x, y):
     geoprocessing.reclassify_from_data(tile, substitutions)
 
     # Render new tiles using the reclassified nlcd data
-    img = geoprocessing.render_tile_from_data(tile, palette)
+    img = tiles.render_tile_from_data(tile, palette)
     return send_file(img, mimetype='image/png')
 
 
@@ -197,7 +198,7 @@ def priority(z, x, y):
     palette = [255,255,255, 0,104,55, 26,152,80, 102,189,99, 166,217,106, 217,239,139, 254,224,139, 253,174,97, 244,109,67, 215,48,39, 165,0,38]  # noqa
 
     # Render the image tile for this priority map with the new palette
-    img = geoprocessing.render_tile_from_data(priority_rounded, palette)
+    img = tiles.render_tile_from_data(priority_rounded, palette)
     return send_file(img, mimetype='image/png')
 
 
