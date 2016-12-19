@@ -30,7 +30,10 @@ def parse_config(request):
 
     """
 
-    req_config = request.get_json(silent=True)
+    if 'get_json' in request:
+        req_config = request.get_json(silent=True)
+    else:
+        req_config = request
 
     if req_config:
         rasters = req_config.get('rasters', None)

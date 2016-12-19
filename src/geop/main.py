@@ -1,5 +1,3 @@
-import time
-
 from flask import Flask, request, jsonify, send_file
 import numpy as np
 
@@ -23,7 +21,6 @@ def count():
     """
     user_input = parse_config(request)
 
-    start = time.clock()
     geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
     mods = user_input['mods']
@@ -31,7 +28,6 @@ def count():
     total, count_map = geoprocessing.count(geom, raster_path, mods)
 
     return jsonify({
-        'time': time.clock() - start,
         'cellCount': total,
         'counts': count_map,
     })
@@ -46,14 +42,12 @@ def pair_counts():
     """
     user_input = parse_config(request)
 
-    start = time.clock()
     geom = user_input['query_polygon']
     raster_paths = user_input['raster_paths']
 
     pair_map = geoprocessing.count_pairs(geom, raster_paths)
 
     return jsonify({
-        'time': time.clock() - start,
         'pairs': pair_map
     })
 
@@ -65,14 +59,12 @@ def xy():
     """
     user_input = parse_config(request)
 
-    start = time.clock()
     geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
 
     value = geoprocessing.sample_at_point(geom, raster_path)
 
     return jsonify({
-        'time': time.clock() - start,
         'value': value
     })
 
@@ -84,14 +76,12 @@ def stats(stat):
     """
     user_input = parse_config(request)
 
-    start = time.clock()
     geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
 
     value = geoprocessing.statistics(geom, raster_path, stat)
 
     return jsonify({
-        'time': time.clock() - start,
         'stat': stat,
         'value': value
     })

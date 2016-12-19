@@ -21,6 +21,8 @@ RUN \
 RUN \
     /builder/bin/pip --no-cache-dir install pyproj
 
+COPY ./geop /usr/src/geop
+
 RUN \
     cd /builder/lib/python2.7/site-packages \
     && zip -9 -r /tmp/rasterio-${RASTERIO_VERSION}.amzn1.zip * \
@@ -32,4 +34,11 @@ RUN \
            -x /jmespath* \
            -x /pkg_resources* \
     && cd /builder/lib64/python2.7/site-packages/ \
-    && zip -9 -r /tmp/rasterio-${RASTERIO_VERSION}.amzn1.zip *
+    && zip -9 -r /tmp/rasterio-${RASTERIO_VERSION}.amzn1.zip * \
+    && cd /usr/src/geop/ \
+    && zip -9 -r /tmp/rasterio-${RASTERIO_VERSION}.amzn1.zip \
+           lambda.py \
+           geoprocessing.py \
+           geo_utils.py \
+           request_utils.py \
+           errors.py

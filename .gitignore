@@ -69,3 +69,6 @@ bundle.js.map
 
 # MacOS
 .DS_Store
+
+# Lambda output
+dist/*.zip

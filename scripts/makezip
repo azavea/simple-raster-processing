@@ -1,0 +1,4 @@
+#!/bin/bash
+
+docker-compose build lambda
+docker-compose run --rm -T lambda mv /tmp/rasterio-1.0a4.amzn1.zip /tmp/dist

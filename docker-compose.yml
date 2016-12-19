@@ -24,5 +24,6 @@ services:
       - ./src/geop:/usr/src/geop
       - ./src/test_data:/usr/src/test_data
       - $HOME/.aws:/root/.aws
+      - ./dist:/tmp/dist
     environment:
       AWS_PROFILE: "azavea-datahub"
