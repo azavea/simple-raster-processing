@@ -9,6 +9,9 @@ DEFAULT_SRS = 'epsg:5070'
 
 
 def get_path(raster_name):
+    if raster_name[:2] == 's3':
+        return raster_name
+
     raster_path = os.path.join(DATA_PATH, raster_name)
     if not os.path.isfile(raster_path):
         raise UserInputError(
@@ -27,7 +30,10 @@ def parse_config(request):
 
     """
 
-    req_config = request.get_json(silent=True)
+    if 'get_json' in request:
+        req_config = request.get_json(silent=True)
+    else:
+        req_config = request
 
     if req_config:
         rasters = req_config.get('rasters', None)

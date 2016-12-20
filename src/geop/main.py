@@ -1,9 +1,8 @@
-import time
-
 from flask import Flask, request, jsonify, send_file
 import numpy as np
 
 import geoprocessing
+import tiles
 
 from errors import UserInputError
 from geo_utils import tile_to_bbox, tile_read
@@ -22,7 +21,6 @@ def count():
     """
     user_input = parse_config(request)
 
-    start = time.clock()
     geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
     mods = user_input['mods']
@@ -30,7 +28,6 @@ def count():
     total, count_map = geoprocessing.count(geom, raster_path, mods)
 
     return jsonify({
-        'time': time.clock() - start,
         'cellCount': total,
         'counts': count_map,
     })
@@ -45,14 +42,12 @@ def pair_counts():
     """
     user_input = parse_config(request)
 
-    start = time.clock()
     geom = user_input['query_polygon']
     raster_paths = user_input['raster_paths']
 
     pair_map = geoprocessing.count_pairs(geom, raster_paths)
 
     return jsonify({
-        'time': time.clock() - start,
         'pairs': pair_map
     })
 
@@ -64,14 +59,12 @@ def xy():
     """
     user_input = parse_config(request)
 
-    start = time.clock()
     geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
 
     value = geoprocessing.sample_at_point(geom, raster_path)
 
     return jsonify({
-        'time': time.clock() - start,
         'value': value
     })
 
@@ -83,14 +76,12 @@ def stats(stat):
     """
     user_input = parse_config(request)
 
-    start = time.clock()
     geom = user_input['query_polygon']
     raster_path = user_input['raster_paths'][0]
 
     value = geoprocessing.statistics(geom, raster_path, stat)
 
     return jsonify({
-        'time': time.clock() - start,
         'stat': stat,
         'value': value
     })
@@ -107,6 +98,8 @@ def layer_tile(layer, z, x, y):
     user_palette = None
     if layer == 'nlcd':
         path = '/usr/data/nlcd/nlcd_webm_512.tif'
+    elif layer == 'nlcd_s3':
+        path = 's3://simple-raster-processing/nlcd_webm_512.tif'
     elif layer == 'soil':
         path = '/usr/data/hydro_soils_webm_512.tif'
         user_palette = [255,255,255, 255,255,212, 254,227,145, 204,76,2, 140,45,4, 254,196,79, 254,153,41, 236,112,20]  # noqa
@@ -115,7 +108,7 @@ def layer_tile(layer, z, x, y):
 
     bbox = tile_to_bbox(z, x, y)
 
-    img = geoprocessing.render_tile(bbox, path, user_palette)
+    img = tiles.render_tile(bbox, path, user_palette)
     return send_file(img, mimetype='image/png')
 
 
@@ -135,7 +128,7 @@ def reclass_tile(z, x, y):
     geoprocessing.reclassify_from_data(tile, substitutions)
 
     # Render new tiles using the reclassified nlcd data
-    img = geoprocessing.render_tile_from_data(tile, palette)
+    img = tiles.render_tile_from_data(tile, palette)
     return send_file(img, mimetype='image/png')
 
 
@@ -195,7 +188,7 @@ def priority(z, x, y):
     palette = [255,255,255, 0,104,55, 26,152,80, 102,189,99, 166,217,106, 217,239,139, 254,224,139, 253,174,97, 244,109,67, 215,48,39, 165,0,38]  # noqa
 
     # Render the image tile for this priority map with the new palette
-    img = geoprocessing.render_tile_from_data(priority_rounded, palette)
+    img = tiles.render_tile_from_data(priority_rounded, palette)
     return send_file(img, mimetype='image/png')
 
 

@@ -110,7 +110,7 @@ def get_window_and_affine(geom, raster_src):
     # Create an affine transformation relative to that window.  Still a little
     # opaque to me and lifted from:
     # https://snorfalorpagus.net/blog/2014/11/09/masking-rasterio-layers-with-vector-features/
-    t = raster_src.affine
+    t = raster_src.transform
     c = t.c + ul[1] * t.a
     f = t.f + lr[0] * t.e
     shifted_affine = Affine(t.a, t.b, c, t.d, t.e, f)

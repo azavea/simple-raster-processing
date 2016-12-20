@@ -1,0 +1,44 @@
+FROM amazonlinux:latest
+
+RUN \
+    yum install -y \
+        gcc \
+        python27-virtualenv \
+        zip \
+    && virtualenv builder \
+    && cd builder \
+    && /builder/bin/pip --no-cache-dir install --upgrade pip
+
+ENV RASTERIO_VERSION 1.0a4
+ENV SHAPELY_VERSION 1.6b2
+
+RUN \
+    /builder/bin/pip --no-cache-dir install rasterio[s3]==${RASTERIO_VERSION}
+
+RUN \
+    /builder/bin/pip --no-cache-dir install shapely==${SHAPELY_VERSION}
+
+RUN \
+    /builder/bin/pip --no-cache-dir install pyproj
+
+COPY ./geop /usr/src/geop
+
+RUN \
+    cd /builder/lib/python2.7/site-packages \
+    && zip -9 -r /tmp/rasterio-${RASTERIO_VERSION}.amzn1.zip * \
+           -x /boto* \
+           -x /pip* \
+           -x /docutils* \
+           -x /s3transfer* \
+           -x /setuptools* \
+           -x /jmespath* \
+           -x /pkg_resources* \
+    && cd /builder/lib64/python2.7/site-packages/ \
+    && zip -9 -r /tmp/rasterio-${RASTERIO_VERSION}.amzn1.zip * \
+    && cd /usr/src/geop/ \
+    && zip -9 -r /tmp/rasterio-${RASTERIO_VERSION}.amzn1.zip \
+           lambda.py \
+           geoprocessing.py \
+           geo_utils.py \
+           request_utils.py \
+           errors.py

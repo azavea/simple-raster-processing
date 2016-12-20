@@ -21,6 +21,7 @@ Vagrant.configure(2) do |config|
 
   # Sync a data directory which contains rasters on the host
   config.vm.synced_folder ENV['DATA_DIR'], "/vagrant/data"
+  config.vm.synced_folder "~/.aws", "/home/vagrant/.aws"
 
   # Change working directory to /vagrant upon session start.
   config.vm.provision "shell", inline: <<SCRIPT

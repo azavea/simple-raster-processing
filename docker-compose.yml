@@ -12,3 +12,18 @@ services:
       - ./src/geop:/usr/src/geop
       - ./src/test_data:/usr/src/test_data
       - ./data:/usr/data
+      - $HOME/.aws:/root/.aws
+    environment:
+      AWS_PROFILE: "azavea-datahub"
+  lambda:
+    image: srp-lambda-geop
+    build:
+      context: ./src
+      dockerfile: Dockerfile.lambda
+    volumes:
+      - ./src/geop:/usr/src/geop
+      - ./src/test_data:/usr/src/test_data
+      - $HOME/.aws:/root/.aws
+      - ./dist:/tmp/dist
+    environment:
+      AWS_PROFILE: "azavea-datahub"

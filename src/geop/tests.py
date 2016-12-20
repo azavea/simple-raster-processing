@@ -253,5 +253,27 @@ class ImageTests(unittest.TestCase):
         self.assertItemsEqual(palette[765:768], colormap[255][0:3])
 
 
+class S3Tests(unittest.TestCase):
+    def setUp(self):
+        self.url = 's3://simple-raster-processing/nlcd_512_lzw_tiled.tif'
+        self.geom = Polygon([
+            [1747260.99651947943493724, 2071928.23170474520884454],
+            [1747260.99651947943493724, 2071884.15942327585071325],
+            [1747323.9569215786177665, 2071882.06074320594780147],
+            [1747321.85824150871485472, 2071927.53214472183026373],
+            [1747260.99651947943493724, 2071928.23170474520884454]])
+
+
+    def test_read_count(self):
+        """Test a small byte offset raster read using vsicurl s3 url"""
+
+        _, s3_counts = geoprocessing.count(self.geom, self.url)
+        _, disk_counts = geoprocessing.count(self.geom, NLCD_PATH)
+
+        self.assertDictEqual(s3_counts, disk_counts,
+                             "Reading the same offset from a local and s3 " +
+                             "file did not produce equivalent results")
+
+
 if __name__ == '__main__':
     unittest.main()
