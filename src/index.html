@@ -6,16 +6,51 @@
   <title>Demo Lambda Geoprocessing</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.7/leaflet.draw.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.10.1/chartist.min.css" />
+  <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+
+  <style>
+    .container, html, body {
+        height: 95%;
+        font-family: 'Roboto';
+    }
+
+    .container {
+    }
+
+    #chart {
+        width: 49%;
+        float: left;
+        padding-left: 5px;
+    }
+    #chart div {
+        height: 300px;
+    }
+
+    #map {
+        width: 50%;
+        height: 95%;
+        float: left;
+    }
+  </style>
 </head>
 
 <body>
-  <h4>Draw a shape below to perform a census on the NLCD raster</h4>
-  <p>Output in console</p>
-  <div id="map" style="height:700px; width:900px"></div>
+  <h4>Draw a shape below to perform a land use and soil</h4>
+  <div class="container">
+      <div id="map"></div>
+      <div id="chart">
+          <h5>Land Cover (% Coverage)</h5>
+          <div id="nlcd"></div>
+          <h5>Soil Types (% Coverage)</h5>
+          <div id="soil"></div>
+      </div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.7/leaflet.draw.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.10.1/chartist.min.js"></script>
 
   <script>
     var map = L.map('map', {center: [39.9, -75.2], zoom: 10}),
@@ -26,14 +61,16 @@
         },
         drawnItems = L.featureGroup().addTo(map),
         url = 'https://wb85ky8g56.execute-api.us-east-1.amazonaws.com/demo',
+        nlcd = 's3://simple-raster-processing/nlcd_512_lzw_tiled.tif',
+        soil = 's3://simple-raster-processing/hydro_soils_512.tif',
         req = {
             method: 'count',
-            rasters: ['s3://simple-raster-processing/nlcd_512_lzw_tiled.tif'],
+            rasters: [],
 
         };
 
     $.ajaxSetup({
-        headers: {'X-API-KEY': 'xxxxx2IR97XenjMY'},
+        headers: {'X-API-KEY': 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn'},
         contentType: 'application/json'
     });
 
@@ -55,15 +92,38 @@
     map.on(L.Draw.Event.CREATED, function (e) {
         drawnItems.addLayer(e.layer);
         req.queryPolygon = e.layer.toGeoJSON().geometry;
+        getData(soil, 'soil');
+        getData(nlcd, 'nlcd');
 
+    });
+
+    function getData(s3, layer) {
+        req.rasters = [s3];
         $.post(url, JSON.stringify(req))
             .done(function(resp) {
-                console.log(resp);
+                if (resp.errorMessage) { return err(layer) };
+
+                var total = resp.cellCount,
+                    labels = Object.keys(resp.counts),
+                    values = Object.values(resp.counts).map(function(v) { return v/total * 100; });
+
+                new Chartist.Bar('#' + layer, {
+                        labels: labels,
+                        series: values,
+                    }, {
+                        horizontalBars: true,
+                        distributeSeries: true
+                    }
+                );
             })
             .fail(function(error) {
-                console.error(error);
+                err(layer);
             });
-    });
+    }
+
+    function err(layer) {
+        $('#' + layer).empty().append('Error');
+    }
 
   </script>
 </body>
