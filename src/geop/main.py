@@ -5,7 +5,7 @@ import geoprocessing
 import tiles
 
 from errors import UserInputError
-from geo_utils import tile_to_bbox, tile_read
+from geo_utils import tile_to_bbox, tile_read, as_json
 from request_utils import parse_config
 
 
@@ -85,6 +85,21 @@ def stats(stat):
         'stat': stat,
         'value': value
     })
+
+
+@app.route('/features/<code>', methods=['POST'])
+def extract_features(code):
+    """
+    Return GeoJSON features for raster area masked by `code`
+    """
+    user_input = parse_config(request)
+
+    geom = user_input['query_polygon']
+    raster_path = user_input['raster_paths'][0]
+
+    values = geoprocessing.extract(geom, raster_path, int(code))
+
+    return jsonify(as_json(values))
 
 
 @app.route('/<layer>/<int:z>/<int:x>/<int:y>.png')

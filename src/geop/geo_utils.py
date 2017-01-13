@@ -229,3 +229,19 @@ def tile_to_bbox(zoom, x, y):
     max_y = origin_y - y*size
 
     return box(min_x, min_y, max_x, max_y, ccw=False)
+
+
+def as_json(geoms, from_srs='epsg:5070', to_srs='epsg:4326'):
+    """
+    Return a list of shapely objects as a reprojected GeoJSON
+    FeatureCollection
+
+    Args:
+        geoms: list of shapely geometries
+        from_srs: EPSG Code of provided geometries (5070)
+        to_srs: EPSG Code of desired output geometries (4326)
+    """
+    features = [reproject(shape(geom), to_srs, from_srs)
+                for geom in geoms]
+
+    return mapping(GeometryCollection(features))
