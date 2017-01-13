@@ -34,7 +34,7 @@ def count(geom, raster_path, modifications=None):
 
     """
 
-    masked_data = mask_geom_on_raster(geom, raster_path, modifications)
+    masked_data, _ = mask_geom_on_raster(geom, raster_path, modifications)
     return masked_array_count(masked_data)
 
 
@@ -69,7 +69,7 @@ def count_pairs(geom, raster_paths):
     """
 
     # Read in two rasters and mask geom on both of them
-    layers = tuple(mask_geom_on_raster(geom, raster_path)
+    layers = tuple(mask_geom_on_raster(geom, raster_path)[0]
                    for raster_path in raster_paths)
 
     # Take the two masked arrays, and stack them along the third axis
@@ -173,7 +173,7 @@ def weighted_overlay(geom, raster_paths, weights):
 
     """
     # Read in rasters and mask geom on them
-    layers = [mask_geom_on_raster(geom, raster_path)
+    layers = [mask_geom_on_raster(geom, raster_path)[0]
               for raster_path in raster_paths]
 
     return weighted_overlay_from_data(layers, weights)
@@ -212,7 +212,7 @@ def reclassify(geom, raster_path, substitutions):
         all cells represented by `substitutions`
     """
     # Read in the raster and mask geom on it
-    layer = mask_geom_on_raster(geom, raster_path)
+    layer, transform = mask_geom_on_raster(geom, raster_path)
     return reclassify_from_data(layer, substitutions)
 
 
@@ -252,7 +252,7 @@ def statistics(geom, raster_path, stat):
         The single value of the statistical operation
     """
     # Read in the raster and mask geom on it
-    layer = mask_geom_on_raster(geom, raster_path)
+    layer, _ = mask_geom_on_raster(geom, raster_path)
 
     # Determine the correct statistic requested
     if stat == 'max':

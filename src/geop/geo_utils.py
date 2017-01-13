@@ -4,6 +4,8 @@ from affine import Affine
 from functools import partial
 from rasterio import features
 from shapely.ops import transform
+from shapely.geometry import shape, mapping
+from shapely.geometry.collection import GeometryCollection
 from shapely.geometry.geo import box
 
 import numpy as np
@@ -77,7 +79,7 @@ def mask_geom_on_raster(geom, raster_path, mods=None, all_touched=True):
     )
 
     # Mask the data array, with modifications applied, by the query polygon
-    return np.ma.array(data=data, mask=geom_mask)
+    return np.ma.array(data=data, mask=geom_mask), shifted_affine
 
 
 def get_window_and_affine(geom, raster_src):
