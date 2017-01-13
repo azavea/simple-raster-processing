@@ -265,3 +265,11 @@ def statistics(geom, raster_path, stat):
         return layer.std()
     else:
         raise Exception("{0} has not been implemented".format(stat))
+
+
+def extract(geom, raster_path, value):
+    layer, transform = mask_geom_on_raster(geom, raster_path)
+    mask = layer == value
+    features = rasterio.features.shapes(layer, mask=mask, transform=transform)
+
+    return [feature[0] for feature in features]

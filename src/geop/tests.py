@@ -1,13 +1,15 @@
 from __future__ import division
 
+import json
 import unittest
 import geoprocessing
 import geo_utils
 import numpy as np
 
 from copy import copy
-from shapely.geometry import Point, Polygon
+from shapely.geometry import mapping, Point, Polygon, shape
 from shapely.geometry.geo import box
+
 
 NLCD_PATH = '../test_data/philly_nlcd.tif'
 NLCD_EDIT_PATH = '../test_data/philly_nlcd_edited.tif'
@@ -93,6 +95,27 @@ class SamplingTests(unittest.TestCase):
         value = geoprocessing.sample_at_point(geom, NLCD_PATH)
 
         self.assertEqual(value, 11)
+
+
+class FeatureTests(unittest.TestCase):
+    def test_water(self):
+        """
+        Tests the value of a known point againt the NLCD raster
+        to verify the cell value at the point is correct
+        """
+        geom = Polygon([
+            [1747247.00531901302747428, 2071931.02994483849033713],
+            [1747248.4044390597846359, 2071849.88098213309422135],
+            [1747333.05120188184082508, 2071848.48186208633705974],
+            [1747333.05120188184082508, 2071931.02994483849033713],
+            [1747247.00531901302747428, 2071931.02994483849033713]])
+
+        values = geoprocessing.extract(geom, NLCD_PATH, 11)
+        out = [json.dumps(mapping(
+               geo_utils.reproject(shape(feature), 'epsg:4326', 'epsg:5070')))
+               for feature in values]
+
+        self.assertEqual(out, 11)
 
 
 class WeightedOverlayTests(unittest.TestCase):
