@@ -3,6 +3,8 @@ import numpy as np
 import rasterio
 
 from geo_utils import mask_geom_on_raster
+from shapely.ops import cascaded_union
+from shapely.geometry import shape
 
 
 def count(geom, raster_path, modifications=None):
@@ -273,3 +275,16 @@ def extract(geom, raster_path, value):
     features = rasterio.features.shapes(layer, mask=mask, transform=transform)
 
     return [feature[0] for feature in features]
+
+
+def extract_above(layer, transform, lower, upper):
+    mask = ((layer >= lower) & (layer <= upper) & ~layer.mask)
+
+    l = np.ones(shape=layer.shape, dtype=np.uint8)
+    l[mask] = 0
+
+    # Create array bool from mask and extract on it.
+    features = rasterio.features.shapes(l, mask=mask, transform=transform)
+
+    polys = cascaded_union([shape(feature[0]) for feature in features])
+    return polys

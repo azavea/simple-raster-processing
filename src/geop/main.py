@@ -102,6 +102,22 @@ def extract_features(code):
     return jsonify(as_json(values))
 
 
+@app.route('/above/<lower>/below/<upper>', methods=['POST'])
+def extract_above(lower, upper):
+    """
+    Return GeoJSON features for raster area masked by `code`
+    """
+    user_input = parse_config(request)
+
+    geom = user_input['query_polygon']
+    raster_path = user_input['raster_paths'][0]
+
+    values = geoprocessing.extract_above(geom, raster_path,
+                                         int(lower), int(upper))
+
+    return jsonify(as_json(values, from_srs='epsg:4269'))
+
+
 @app.route('/<layer>/<int:z>/<int:x>/<int:y>.png')
 def layer_tile(layer, z, x, y):
     """
