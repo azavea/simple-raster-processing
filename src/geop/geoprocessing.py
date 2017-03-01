@@ -1,10 +1,14 @@
+from __future__ import division
+
 import collections
+import json
+import math
 import numpy as np
 import rasterio
 
 from geo_utils import mask_geom_on_raster
 from shapely.ops import cascaded_union
-from shapely.geometry import shape
+from shapely.geometry import shape, mapping
 
 
 def count(geom, raster_path, modifications=None):
@@ -277,14 +281,68 @@ def extract(geom, raster_path, value):
     return [feature[0] for feature in features]
 
 
+def elevation_increments(geom, raster_path):
+
+    # Get min/max of masked area
+    print('start')
+    layer, transform = mask_geom_on_raster(geom, raster_path)
+    print('read in')
+    min_el = layer.min()
+    max_el = layer.max()
+
+    inc = .1524  # Half foot in meters
+    cnt = 0
+    lower = min_el
+    upper = min_el + inc
+    runs = math.ceil((max_el - min_el)/inc)
+
+    print('{} to {}'.format(min_el, max_el))
+    print('Generating {} levels'.format(runs))
+
+    shapes = []
+    while lower <= max_el:
+        import time
+        start = time.time()
+        values = extract_above(layer, transform, lower, upper)
+        if cnt > 0:
+            shapes.append(cascaded_union([values] + [shapes[cnt - 1]]))
+        else:
+            shapes.append(values)
+
+        print(cnt, time.time() - start, '{}-{}'.format(lower, upper))
+        with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
+            f.write(json.dumps(mapping(shapes[cnt])))
+
+        lower += inc
+        upper += inc
+        cnt += 1
+
+
 def extract_above(layer, transform, lower, upper):
-    mask = ((layer >= lower) & (layer <= upper) & ~layer.mask)
+    #mask = ((layer >= lower) & (layer <= upper) & ~layer.mask)
 
-    l = np.ones(shape=layer.shape, dtype=np.uint8)
-    l[mask] = 0
+    print(transform.__dict__)
+    return
+    max_rows = layer.shape[0]
+    start = 0
+    end = 100
+    inc = 100
 
-    # Create array bool from mask and extract on it.
-    features = rasterio.features.shapes(l, mask=mask, transform=transform)
+    increment_vectors = []
+    while start < max_rows:
+        # Create array bool from mask and extract on it.
+        layer_chunk = layer[start:end]
+        chunk = np.ones(shape=layer_chunk.shape, dtype=np.uint8)
+        layer_mask_chunk = layer.mask[start:end]
 
-    polys = cascaded_union([shape(feature[0]) for feature in features])
-    return polys
+        mask = ((layer_chunk >= lower) & (layer_chunk <= upper) & ~layer_mask_chunk)
+        chunk[mask] = 0
+        features = rasterio.features.shapes(chunk, mask=mask, transform=transform)
+
+        chunk_vectors = [shape(feature[0]) for feature in features]
+        increment_vectors.append(cascaded_union(chunk_vectors))
+
+        start = end + 1
+        end = end + inc
+
+    return cascaded_union(increment_vectors)
