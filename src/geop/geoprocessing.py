@@ -6,6 +6,7 @@ import math
 import numpy as np
 import rasterio
 
+from affine import Affine
 from geo_utils import mask_geom_on_raster
 from shapely.ops import cascaded_union
 from shapely.geometry import shape, mapping
@@ -321,12 +322,10 @@ def elevation_increments(geom, raster_path):
 def extract_above(layer, transform, lower, upper):
     #mask = ((layer >= lower) & (layer <= upper) & ~layer.mask)
 
-    print(transform.__dict__)
-    return
     max_rows = layer.shape[0]
     start = 0
-    end = 100
-    inc = 100
+    end = 1000
+    inc = 1000
 
     increment_vectors = []
     while start < max_rows:
@@ -337,12 +336,22 @@ def extract_above(layer, transform, lower, upper):
 
         mask = ((layer_chunk >= lower) & (layer_chunk <= upper) & ~layer_mask_chunk)
         chunk[mask] = 0
-        features = rasterio.features.shapes(chunk, mask=mask, transform=transform)
 
+        # Transorm the Affine from the large window to the chunk
+        t = transform
+        f = t.f + start * t.e
+        shifted = Affine(t.a, t.b, t.c, t.d, t.e, f)
+
+        # Pull the features out
+        features = rasterio.features.shapes(chunk, mask=mask, transform=shifted)
+
+        # Exercise the generator to get a list of shapes
         chunk_vectors = [shape(feature[0]) for feature in features]
+
+        # Union them together into a single polygon
         increment_vectors.append(cascaded_union(chunk_vectors))
 
-        start = end + 1
+        start = end
         end = end + inc
 
     return cascaded_union(increment_vectors)
