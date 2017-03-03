@@ -129,11 +129,14 @@ class FeatureTests(unittest.TestCase):
         with open('/usr/data/jumbo_leveed_area.wkt') as j:
             geom_jumbo = wkt.loads(j.read())
 
+        with open('/usr/data/4406000020.wkt') as j:
+            geom_med = wkt.loads(j.read())
+
         pa_dem = '/usr/data/pa_512.tif'
         miss_dem = '/usr/data/miss.tif'
 
-        geom = geo_utils.reproject(geom_pitts, 'epsg:4269', 'epsg:4326')
-        geoprocessing.elevation_increments(geom, pa_dem)
+        geom = geo_utils.reproject(geom_med, 'epsg:4269', 'epsg:4326')
+        geoprocessing.elevation_increments(geom, miss_dem)
 
 
 class WeightedOverlayTests(unittest.TestCase):

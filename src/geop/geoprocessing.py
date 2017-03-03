@@ -2,6 +2,7 @@ from __future__ import division
 
 import collections
 import json
+import itertools
 import math
 import numpy as np
 import rasterio
@@ -305,14 +306,16 @@ def elevation_increments(geom, raster_path):
         import time
         start = time.time()
         values = extract_above(layer, transform, lower, upper)
-        if cnt > 0:
-            shapes.append(cascaded_union([values] + [shapes[cnt - 1]]))
-        else:
-            shapes.append(values)
 
-        print(cnt, time.time() - start, '{}-{}'.format(lower, upper))
-        with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
-            f.write(json.dumps(mapping(shapes[cnt])))
+        #print('Unioning')
+        #if cnt > 0:
+        #    shapes.append(cascaded_union(values + [shapes[cnt - 1]]))
+        #else:
+        #    shapes.append(cascaded_union(values))
+#
+        print(cnt, time.time() - start, '{}-{}'.format(lower, upper), len(values))
+#        with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
+#            f.write(json.dumps(mapping(shapes[cnt])))
 
         lower += inc
         upper += inc
@@ -349,9 +352,11 @@ def extract_above(layer, transform, lower, upper):
         chunk_vectors = [shape(feature[0]) for feature in features]
 
         # Union them together into a single polygon
-        increment_vectors.append(cascaded_union(chunk_vectors))
+        #increment_vectors.append(cascaded_union(chunk_vectors)))
+        increment_vectors.append(chunk_vectors)
 
         start = end
         end = end + inc
 
-    return cascaded_union(increment_vectors)
+    #return cascaded_union(increment_vectors)
+    return list(itertools.chain(*increment_vectors))
