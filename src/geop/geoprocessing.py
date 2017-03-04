@@ -10,7 +10,7 @@ import rasterio
 from affine import Affine
 from geo_utils import mask_geom_on_raster
 from shapely.ops import cascaded_union
-from shapely.geometry import shape, mapping
+from shapely.geometry import shape, mapping, MultiPolygon
 
 from multiprocessing import Process, Queue
 
@@ -286,10 +286,9 @@ def extract(geom, raster_path, value):
 def union(queue):
     SHAPE = None
     while True:
-        msg, cnt = queue.get()
-        if msg:
-            print('union start', cnt)
-            s = cascaded_union(msg)
+        features, cnt = queue.get()
+        if features:
+            s = MultiPolygon(features)
 
             with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
                 f.write(json.dumps(mapping(s)))
@@ -328,7 +327,7 @@ def elevation_increments(geom, raster_path):
 
 
     shapes = []
-    while lower <= max_el:
+    while level <= max_el:
         import time
         start = time.time()
         values = extract_above(layer, transform, lower, upper)
@@ -338,6 +337,7 @@ def elevation_increments(geom, raster_path):
         print(cnt, time.time() - start, '{}-{}'.format(lower, upper), len(values))
 
         #lower += inc
+        level += inc
         upper += inc
         cnt += 1
 
