@@ -288,14 +288,21 @@ def union(queue):
     while True:
         msg, cnt = queue.get()
         if msg:
-            print('union', len(msg))
+            print('union start', cnt)
             s = cascaded_union(msg)
 
             with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
                 f.write(json.dumps(mapping(s)))
+            print('saved', cnt)
         else:
             print('fin')
             break
+
+
+def setup_queue(queue):
+    shape_handler = Process(target=union, args=((queue),))
+    shape.daemon = True
+    shape_handler.start()
 
 
 def elevation_increments(geom, raster_path):
@@ -317,9 +324,7 @@ def elevation_increments(geom, raster_path):
     print('Generating {} levels'.format(runs))
 
     queue = Queue()
-    shape_handler = Process(target=union, args=((queue),))
-    shape.daemon = True
-    shape_handler.start()
+    processes = [setup_queue(queue) for i in range(5)]
 
 
     shapes = []
@@ -337,9 +342,10 @@ def elevation_increments(geom, raster_path):
         cnt += 1
 
 
-    queue.put((False, None))
+    for p in processes:
+        queue.put((False, None))
+        p.join()
 
-    shape_handler.join()
 
 
 def extract_above(layer, transform, lower, upper):
