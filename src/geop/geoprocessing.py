@@ -283,25 +283,19 @@ def extract(geom, raster_path, value):
 
     return [feature[0] for feature in features]
 
-def union(queue):
-    SHAPE = None
-    while True:
-        features, cnt = queue.get()
-        if features:
-            s = MultiPolygon(features)
+def union(cnt, features):
+        s = MultiPolygon(features)
 
-            with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
-                f.write(json.dumps(mapping(s)))
-            print('saved', cnt)
-        else:
-            print('fin')
-            break
+        with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
+            f.write(json.dumps(mapping(s)))
+        print(cnt, 'saved')
 
 
 def setup_queue(queue):
-    shape_handler = Process(target=union, args=((queue),))
-    shape.daemon = True
+    shape_handler = Process(target=extract_above, args=((queue),))
+    shape_handler.daemon = False
     shape_handler.start()
+    return shape_handler
 
 
 def elevation_increments(geom, raster_path):
@@ -325,63 +319,59 @@ def elevation_increments(geom, raster_path):
     queue = Queue()
     processes = [setup_queue(queue) for i in range(5)]
 
-
     shapes = []
+    level = lower
     while level <= max_el:
-        import time
-        start = time.time()
-        values = extract_above(layer, transform, lower, upper)
+        queue.put((cnt, layer, transform, lower, upper))
 
-        queue.put((values, cnt))
-
-        print(cnt, time.time() - start, '{}-{}'.format(lower, upper), len(values))
-
-        #lower += inc
         level += inc
         upper += inc
         cnt += 1
 
-
     for p in processes:
-        queue.put((False, None))
-        p.join()
+        queue.put([None] * 5)
 
 
+def extract_above(queue):
 
-def extract_above(layer, transform, lower, upper):
+    while True:
+        cnt, layer, transform, lower, upper = queue.get()
+        if cnt is not None:
+            max_rows = layer.shape[0]
+            start = 0
+            end = 1000
+            inc = 1000
 
-    max_rows = layer.shape[0]
-    start = 0
-    end = 1000
-    inc = 1000
+            increment_vectors = []
+            while start < max_rows:
+                # Create array bool from mask and extract on it.
+                layer_chunk = layer[start:end]
+                chunk = np.ones(shape=layer_chunk.shape, dtype=np.uint8)
+                layer_mask_chunk = layer.mask[start:end]
 
-    increment_vectors = []
-    while start < max_rows:
-        # Create array bool from mask and extract on it.
-        layer_chunk = layer[start:end]
-        chunk = np.ones(shape=layer_chunk.shape, dtype=np.uint8)
-        layer_mask_chunk = layer.mask[start:end]
+                mask = ((layer_chunk >= lower) & (layer_chunk <= upper) & ~layer_mask_chunk)
+                chunk[mask] = 0
 
-        mask = ((layer_chunk >= lower) & (layer_chunk <= upper) & ~layer_mask_chunk)
-        chunk[mask] = 0
+                # Transorm the Affine from the large window to the chunk
+                t = transform
+                f = t.f + start * t.e
+                shifted = Affine(t.a, t.b, t.c, t.d, t.e, f)
 
-        # Transorm the Affine from the large window to the chunk
-        t = transform
-        f = t.f + start * t.e
-        shifted = Affine(t.a, t.b, t.c, t.d, t.e, f)
+                # Pull the features out
+                features = rasterio.features.shapes(chunk, mask=mask, transform=shifted)
 
-        # Pull the features out
-        features = rasterio.features.shapes(chunk, mask=mask, transform=shifted)
+                # Exercise the generator to get a list of shapes
+                chunk_vectors = [shape(feature[0]) for feature in features]
 
-        # Exercise the generator to get a list of shapes
-        chunk_vectors = [shape(feature[0]) for feature in features]
+                # Union them together into a single polygon
+                #increment_vectors.append(cascaded_union(chunk_vectors)))
+                increment_vectors.append(chunk_vectors)
 
-        # Union them together into a single polygon
-        #increment_vectors.append(cascaded_union(chunk_vectors)))
-        increment_vectors.append(chunk_vectors)
+                start = end
+                end = end + inc
 
-        start = end
-        end = end + inc
-
-    #return cascaded_union(increment_vectors)
-    return list(itertools.chain(*increment_vectors))
+            #return cascaded_union(increment_vectors)
+            union(cnt, list(itertools.chain(*increment_vectors)))
+        else:
+            print('fin')
+            break
