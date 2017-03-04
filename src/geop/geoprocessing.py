@@ -12,7 +12,7 @@ from geo_utils import mask_geom_on_raster
 from shapely.ops import cascaded_union
 from shapely.geometry import shape, mapping
 
-from multiprocessing import Process, Queue, Pool
+from multiprocessing import Process, Queue
 
 def count(geom, raster_path, modifications=None):
     """
@@ -283,14 +283,19 @@ def extract(geom, raster_path, value):
 
     return [feature[0] for feature in features]
 
+def union(queue):
+    SHAPE = None
+    while True:
+        msg, cnt = queue.get()
+        if msg:
+            print('union', len(msg))
+            s = cascaded_union(msg)
 
-def union(level):
-    features, cnt = level
-    print('working', cnt)
-    s = cascaded_union(features)
-
-    with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
-        f.write(json.dumps(mapping(s)))
+            with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
+                f.write(json.dumps(mapping(s)))
+        else:
+            print('fin')
+            break
 
 
 def elevation_increments(geom, raster_path):
@@ -311,35 +316,30 @@ def elevation_increments(geom, raster_path):
     print('{} to {}'.format(min_el, max_el))
     print('Generating {} levels'.format(runs))
 
-    #queue = Queue()
-    #shape_handler = Process(target=union, args=((queue),))
-    #shape.daemon = True
-    #shape_handler.start()
+    queue = Queue()
+    shape_handler = Process(target=union, args=((queue),))
+    shape.daemon = True
+    shape_handler.start()
 
 
     shapes = []
-    level = lower
-    while level <= max_el:
+    while lower <= max_el:
         import time
         start = time.time()
-        features = extract_above(layer, transform, lower, upper)
-        print(cnt)
-        shapes.append((features, cnt))
+        values = extract_above(layer, transform, lower, upper)
+
+        queue.put((values, cnt))
+
+        print(cnt, time.time() - start, '{}-{}'.format(lower, upper), len(values))
 
         #lower += inc
-        level += inc
         upper += inc
         cnt += 1
 
-    #queue.put((values, cnt))
-    #print(cnt, time.time() - start, '{}-{}'.format(lower, upper), len(values))
-    pool = Pool()
-    pool.map(union, shapes)
-    pool.close()
-    pool.join()
 
-    #queue.put((False, None))
-    #shape_handler.join()
+    queue.put((False, None))
+
+    shape_handler.join()
 
 
 def extract_above(layer, transform, lower, upper):
