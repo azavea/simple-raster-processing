@@ -12,6 +12,7 @@ from geo_utils import mask_geom_on_raster
 from shapely.ops import cascaded_union
 from shapely.geometry import shape, mapping
 
+from multiprocessing import Process, Queue
 
 def count(geom, raster_path, modifications=None):
     """
@@ -282,6 +283,20 @@ def extract(geom, raster_path, value):
 
     return [feature[0] for feature in features]
 
+def union(queue):
+    SHAPE = None
+    while True:
+        msg, cnt = queue.get()
+        if msg:
+            print('union', len(msg))
+            s = cascaded_union(msg)
+
+            with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
+                f.write(json.dumps(mapping(s)))
+        else:
+            print('fin')
+            break
+
 
 def elevation_increments(geom, raster_path):
 
@@ -301,29 +316,33 @@ def elevation_increments(geom, raster_path):
     print('{} to {}'.format(min_el, max_el))
     print('Generating {} levels'.format(runs))
 
+    queue = Queue()
+    shape_handler = Process(target=union, args=((queue),))
+    shape.daemon = True
+    shape_handler.start()
+
+
     shapes = []
     while lower <= max_el:
         import time
         start = time.time()
         values = extract_above(layer, transform, lower, upper)
 
-        #print('Unioning')
-        #if cnt > 0:
-        #    shapes.append(cascaded_union(values + [shapes[cnt - 1]]))
-        #else:
-        #    shapes.append(cascaded_union(values))
-#
-        print(cnt, time.time() - start, '{}-{}'.format(lower, upper), len(values))
-#        with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
-#            f.write(json.dumps(mapping(shapes[cnt])))
+        queue.put((values, cnt))
 
-        lower += inc
+        print(cnt, time.time() - start, '{}-{}'.format(lower, upper), len(values))
+
+        #lower += inc
         upper += inc
         cnt += 1
 
 
+    queue.put((False, None))
+
+    shape_handler.join()
+
+
 def extract_above(layer, transform, lower, upper):
-    #mask = ((layer >= lower) & (layer <= upper) & ~layer.mask)
 
     max_rows = layer.shape[0]
     start = 0
