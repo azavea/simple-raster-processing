@@ -3,6 +3,7 @@ from __future__ import division
 import json
 import unittest
 import geoprocessing
+import elevation_extraction
 import geo_utils
 import numpy as np
 
@@ -135,8 +136,8 @@ class FeatureTests(unittest.TestCase):
         pa_dem = '/usr/data/pa_512.tif'
         miss_dem = '/usr/data/miss.tif'
 
-        geom = geo_utils.reproject(geom_med, 'epsg:4269', 'epsg:4326')
-        geoprocessing.elevation_increments(geom, miss_dem)
+        geom = geo_utils.reproject(geom_pitts, 'epsg:4269', 'epsg:4326')
+        elevation_extraction.process_increments(geom, pa_dem)
 
 
 class WeightedOverlayTests(unittest.TestCase):

@@ -1,18 +1,11 @@
 from __future__ import division
 
 import collections
-import json
-import itertools
-import math
 import numpy as np
 import rasterio
 
-from affine import Affine
 from geo_utils import mask_geom_on_raster
-from shapely.ops import cascaded_union
-from shapely.geometry import shape, mapping, MultiPolygon
 
-from multiprocessing import Process, Queue
 
 def count(geom, raster_path, modifications=None):
     """
@@ -282,96 +275,3 @@ def extract(geom, raster_path, value):
     features = rasterio.features.shapes(layer, mask=mask, transform=transform)
 
     return [feature[0] for feature in features]
-
-def union(cnt, features):
-        s = MultiPolygon(features)
-
-        with open('/usr/data/out/pa-{}.json'.format(cnt), 'w') as f:
-            f.write(json.dumps(mapping(s)))
-        print(cnt, 'saved')
-
-
-def setup_queue(queue):
-    shape_handler = Process(target=extract_above, args=((queue),))
-    shape_handler.daemon = False
-    shape_handler.start()
-    return shape_handler
-
-
-def elevation_increments(geom, raster_path):
-
-    # Get min/max of masked area
-    print('start')
-    layer, transform = mask_geom_on_raster(geom, raster_path)
-    print('read in')
-    min_el = layer.min()
-    max_el = layer.max()
-
-    inc = .1524  # Half foot in meters
-    cnt = 0
-    lower = min_el
-    upper = min_el + inc
-    runs = math.ceil((max_el - min_el)/inc)
-
-    print('{} to {}'.format(min_el, max_el))
-    print('Generating {} levels'.format(runs))
-
-    queue = Queue()
-    processes = [setup_queue(queue) for i in range(5)]
-
-    shapes = []
-    level = lower
-    while level <= max_el:
-        queue.put((cnt, layer, transform, lower, upper))
-
-        level += inc
-        upper += inc
-        cnt += 1
-
-    for p in processes:
-        queue.put([None] * 5)
-
-
-def extract_above(queue):
-
-    while True:
-        cnt, layer, transform, lower, upper = queue.get()
-        if cnt is not None:
-            max_rows = layer.shape[0]
-            start = 0
-            end = 1000
-            inc = 1000
-
-            increment_vectors = []
-            while start < max_rows:
-                # Create array bool from mask and extract on it.
-                layer_chunk = layer[start:end]
-                chunk = np.ones(shape=layer_chunk.shape, dtype=np.uint8)
-                layer_mask_chunk = layer.mask[start:end]
-
-                mask = ((layer_chunk >= lower) & (layer_chunk <= upper) & ~layer_mask_chunk)
-                chunk[mask] = 0
-
-                # Transorm the Affine from the large window to the chunk
-                t = transform
-                f = t.f + start * t.e
-                shifted = Affine(t.a, t.b, t.c, t.d, t.e, f)
-
-                # Pull the features out
-                features = rasterio.features.shapes(chunk, mask=mask, transform=shifted)
-
-                # Exercise the generator to get a list of shapes
-                chunk_vectors = [shape(feature[0]) for feature in features]
-
-                # Union them together into a single polygon
-                #increment_vectors.append(cascaded_union(chunk_vectors)))
-                increment_vectors.append(chunk_vectors)
-
-                start = end
-                end = end + inc
-
-            #return cascaded_union(increment_vectors)
-            union(cnt, list(itertools.chain(*increment_vectors)))
-        else:
-            print('fin')
-            break
