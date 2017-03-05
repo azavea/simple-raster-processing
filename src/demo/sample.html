@@ -16,21 +16,28 @@
     }
 
     #map {
-        width: 90%;
+        width: 98%;
         height: 95%;
+    }
+
+    div#chart {
+        position: absolute;
+        width: 98%;
+        bottom: 40px;
+        z-index: 1000;
+    }
+    .ct-point {
+        stroke-width: 0px;
     }
   </style>
 </head>
 
 <body>
-  <h4>Draw a shape below to extract features</h4>
-  <input type="radio" name="cover" value="11" checked>Water
-  <input type="radio" name="cover" value="82">Crops
-  <input type="radio" name="cover" value="24">Developed, High
-  <input type="radio" name="cover" value="41">Forest
+  <h4>Draw a line to chart elevation changes</h4>
   <hr/>
   <div class="container">
       <div id="map"></div>
+      <div id="chart"></div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.js"></script>
@@ -39,15 +46,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.10.1/chartist.min.js"></script>
 
   <script>
-    var map = L.map('map', {center: [39.9, -75.2], zoom: 10}),
-        base = L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png').addTo(map),
+    var map = L.map('map', {center: [40.29, -76.7], zoom: 10}),
+    base = L.tileLayer('http://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png').addTo(map),
         overlays = {
             NLCD: L.tileLayer('https://{s}.tiles.azavea.com/nlcd/{z}/{x}/{y}.png', {opacity: 0.7, maxNativeZoom: 13}),
             Soil: L.tileLayer('https://{s}.tiles.azavea.com/ssurgo-hydro-group-30m/{z}/{x}/{y}.png', {opacity: 0.7, maxNativeZoom: 13}),
         },
         drawnItems = L.featureGroup().addTo(map),
-        coverLayer = L.geoJSON().addTo(map),
-        coverUrl = 'http://localhost:8080/features/{id}',
+        coverUrl = 'http://localhost:8080/sample-change',
         req = {
             rasters: ['nlcd/nlcd_512.tif']
         };
@@ -61,20 +67,21 @@
     map.addControl(new L.Control.Draw({
         draw: {
             marker: false,
-            polyline: false,
+            polyline: true,
             circle: false,
-            polygon: true
+            polygon: false,
+            rectangle: false
         }
     }));
 
     map.on(L.Draw.Event.DRAWSTART, function (e) {
         drawnItems.clearLayers();
-        coverLayer.clearLayers();
+        $('#chart').empty();
     });
 
     map.on(L.Draw.Event.CREATED, function (e) {
         drawnItems.addLayer(e.layer);
-        req.queryPolygon = e.layer.toGeoJSON().geometry;
+        req.queryLine = e.layer.toGeoJSON().geometry;
         getData();
 
     });
@@ -83,8 +90,29 @@
         var url = coverUrl.replace('{id}', $('[name="cover"]:checked').val());
         $.post(url, JSON.stringify(req))
             .done(function(resp) {
-                drawnItems.clearLayers();
-                coverLayer.addData(resp);
+                console.log(resp);
+
+                var chart = new Chartist.Line('#chart', {
+                  //labels: [1, 2, 3, 4, 5, 6, 7, 8],
+                  series: [resp]
+                }, {
+                  low: 0,
+                  showArea: true
+                });
+
+                chart.on('draw', function(data) {
+                  if(data.type === 'line' || data.type === 'area') {
+                    data.element.animate({
+                      d: {
+                        begin: 2000 * data.index,
+                        dur: 2000,
+                        from: data.path.clone().scale(1, 0).translate(0, data.chartRect.height()).stringify(),
+                        to: data.path.clone().stringify(),
+                        easing: Chartist.Svg.Easing.easeOutQuint
+                      }
+                    });
+                  }
+                });
             })
             .fail(function(error) {
                 alert('darn');
