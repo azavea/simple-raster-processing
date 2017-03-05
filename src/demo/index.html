@@ -1,0 +1,125 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Demo Lambda Geoprocessing</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.7/leaflet.draw.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.10.1/chartist.min.css" />
+  <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+
+  <style>
+    .container, html, body {
+        height: 95%;
+        font-family: 'Roboto';
+    }
+
+    .container {
+    }
+
+    #chart {
+        width: 49%;
+        float: left;
+        padding-left: 5px;
+    }
+    #chart div {
+        height: 300px;
+    }
+
+    #map {
+        width: 50%;
+        height: 95%;
+        float: left;
+    }
+  </style>
+</head>
+
+<body>
+  <h4>Draw a shape below to perform a land use and soil</h4>
+  <div class="container">
+      <div id="map"></div>
+      <div id="chart">
+      </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.7/leaflet.draw.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.10.1/chartist.min.js"></script>
+
+  <script>
+    var map = L.map('map', {center: [39.9, -75.2], zoom: 10}),
+        base = L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png').addTo(map),
+        overlays = {
+            NLCD: L.tileLayer('https://{s}.tiles.azavea.com/nlcd/{z}/{x}/{y}.png', {opacity: 0.7}),
+            Soil: L.tileLayer('https://{s}.tiles.azavea.com/ssurgo-hydro-group-30m/{z}/{x}/{y}.png', {opacity: 0.7}),
+        },
+        drawnItems = L.featureGroup().addTo(map),
+        url = 'https://wb85ky8g56.execute-api.us-east-1.amazonaws.com/demo',
+        nlcd = 's3://simple-raster-processing/nlcd_512_lzw_tiled.tif',
+        soil = 's3://simple-raster-processing/hydro_soils_512.tif',
+        water = {
+            rasters: ['nlcd/nlcd_512.tif'],
+
+        };
+
+    $.ajaxSetup({
+        headers: {'X-API-KEY': 'WAfuzjUnlB8wm5zqyz90a8HeDQ66t2IR97XenjMY'},
+        contentType: 'application/json'
+    });
+
+    L.control.layers(null, overlays).addTo(map);
+
+    map.addControl(new L.Control.Draw({
+        draw: {
+            marker: false,
+            polyline: false,
+            circle: false,
+            polygon: false
+        }
+    }));
+
+    map.on(L.Draw.Event.DRAWSTART, function (e) {
+        drawnItems.clearLayers();
+    });
+
+    map.on(L.Draw.Event.CREATED, function (e) {
+        drawnItems.addLayer(e.layer);
+        req.queryPolygon = e.layer.toGeoJSON().geometry;
+        getData(soil, 'soil');
+        getData(nlcd, 'nlcd');
+
+    });
+
+    function getData(s3, layer) {
+        req.rasters = [s3];
+        $.post(url, JSON.stringify(req))
+            .done(function(resp) {
+                if (resp.errorMessage) { return err(layer) };
+
+                var total = resp.cellCount,
+                    labels = Object.keys(resp.counts),
+                    values = Object.values(resp.counts).map(function(v) { return v/total * 100; });
+
+                new Chartist.Bar('#' + layer, {
+                        labels: labels,
+                        series: values,
+                    }, {
+                        horizontalBars: true,
+                        distributeSeries: true
+                    }
+                );
+            })
+            .fail(function(error) {
+                err(layer);
+            });
+    }
+
+    function err(layer) {
+        $('#' + layer).empty().append('Error');
+    }
+
+  </script>
+</body>
+</html>
