@@ -71,6 +71,22 @@ def xy():
     })
 
 
+@app.route('/sample-change', methods=['POST'])
+def sample_change():
+    """
+    Interpolate along a line and then sample the points
+    """
+    user_input = parse_config(request)
+    line = user_input['query_line']
+    raster_path = user_input['raster_paths'][0]
+
+    value = geoprocessing.sample_along_line(line, raster_path)
+
+    return jsonify({
+        'value': value
+    })
+
+
 @app.route('/stats/<stat>', methods=['POST'])
 def stats(stat):
     """

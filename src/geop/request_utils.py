@@ -36,6 +36,9 @@ def parse_config(request):
         req_config = request
 
     if req_config:
+        query_line_srs = None
+        query_polygon_srs = None
+
         rasters = req_config.get('rasters', None)
         if not rasters:
             raise UserInputError('rasters key is required in config')
@@ -43,13 +46,19 @@ def parse_config(request):
         raster_paths = [get_path(raster) for raster in rasters]
 
         query_polygon = req_config.get('queryPolygon', None)
-        if not query_polygon:
-            raise UserInputError('queryPolygon key is required in config')
+        query_line = req_config.get('queryLine', None)
+        if not query_polygon and not query_line:
+            raise UserInputError('queryPolygon or queryLine key is required \
+                                 in config')
 
         srs = req_config.get('src_srs', DEFAULT_SRS)
 
         # Reproject the required input query polygon
-        query_polygon_srs = reproject(shape(query_polygon), srs)
+        if query_polygon:
+            query_polygon_srs = reproject(shape(query_polygon), srs)
+
+        if query_line:
+            query_line_srs = reproject(shape(query_line), srs)
 
         # Modifications are optional, reproject if any exist
         mods = req_config.get('modifications', None)
@@ -59,6 +68,7 @@ def parse_config(request):
 
         return {
             'query_polygon': query_polygon_srs,
+            'query_line': query_line_srs,
             'raster_paths': raster_paths,
             'srs': srs,
             'mods': mods,

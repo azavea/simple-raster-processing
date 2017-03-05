@@ -231,6 +231,14 @@ def tile_to_bbox(zoom, x, y):
     return box(min_x, min_y, max_x, max_y, ccw=False)
 
 
+def interpolate_points(line):
+    """
+    Break a line into linear points
+    """
+    return [line.interpolate(n/150, normalized=True).coords
+            for n in range(0, 150, 1)]
+
+
 def as_json(geoms, from_srs='epsg:5070', to_srs='epsg:4326'):
     """
     Return a list of shapely objects as a reprojected GeoJSON

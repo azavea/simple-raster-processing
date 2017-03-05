@@ -1,8 +1,9 @@
 import collections
+import itertools
 import numpy as np
 import rasterio
 
-from geo_utils import mask_geom_on_raster
+from geo_utils import mask_geom_on_raster, interpolate_points
 
 
 def count(geom, raster_path, modifications=None):
@@ -145,6 +146,33 @@ def sample_at_point(geom, raster_path):
         value = value_gen.next().item(0)
 
     return value
+
+
+def sample_along_line(line, raster_path):
+    """
+    Return the cell values for a raster across an interpolated series of
+    points of a line
+
+    Args:
+        geom (Shapely Geometry): A Line object in the same SRS as the target
+            raster defining the points to extract cell values.
+
+        raster_path (string): A local file path to a geographic raster
+            containing the value to extract.
+
+    Returns:
+        The cell values, in the data type of the input raster, at the points
+        defined by interpolating the line
+
+    """
+
+    with rasterio.open(raster_path) as src:
+        points = list(itertools.chain(*interpolate_points(line)))
+
+        # Sample the raster at the given coordinates
+        values = list(src.sample(points, indexes=[1]))
+        samples = [value.item(0) for value in values]
+        return samples
 
 
 def weighted_overlay(geom, raster_paths, weights):
