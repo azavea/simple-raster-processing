@@ -8,8 +8,10 @@ from errors import UserInputError
 from geo_utils import tile_to_bbox, tile_read, as_json
 from request_utils import parse_config
 
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.route('/counts', methods=['POST'])
