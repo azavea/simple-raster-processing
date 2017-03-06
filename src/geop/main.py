@@ -130,11 +130,13 @@ def layer_tile(layer, z, x, y):
     # Requirements are EPSG:3857
     user_palette = None
     if layer == 'nlcd':
-        path = '/usr/data/nlcd/nlcd_webm_512.tif'
+        path = '/usr/data/nlcd_webm_512.tif'
+    elif layer == 'nlcd-ovr':
+        path = '/usr/data/nlcd_webm_512_ovr.tif'
     elif layer == 'nlcd_s3':
-        path = 's3://simple-raster-processing/nlcd_webm_512.tif'
+        path = 's3://simple-raster-processing/nlcd_webm_512_ovr.tif'
     elif layer == 'soil':
-        path = '/usr/data/hydro_soils_webm_512.tif'
+        path = '/usr/data/hydro_soils_webm_512_ovr.tif'
         user_palette = [255,255,255, 255,255,212, 254,227,145, 204,76,2, 140,45,4, 254,196,79, 254,153,41, 236,112,20]  # noqa
     else:
         raise UserInputError('No layer {0} is registered.'.format(layer))
@@ -152,7 +154,7 @@ def reclass_tile(z, x, y):
     """
     # This would need to otherwise be specified in a config.
     # Requirements are EPSG:3857 and a color table
-    path = '/usr/data/nlcd/nlcd_webm_512.tif'
+    path = '/usr/data/nlcd_webm_512_ovr.tif'
     bbox = tile_to_bbox(z, x, y)
     tile, palette = tile_read(bbox, path)
     # Reclassify the nlcd data to be in related groups
@@ -165,8 +167,8 @@ def reclass_tile(z, x, y):
     return send_file(img, mimetype='image/png')
 
 
-@app.route('/priority/<int:z>/<int:x>/<int:y>.png')
-def priority(z, x, y):
+@app.route('/priority/<int:z>/<int:x>/<int:y>/<int:urban>.png')
+def priority(z, x, y, urban):
     """
     A contrived prioritization analysis to identify areas where Green
     Stormwater Infrastructure projects would have the most benefit. This
@@ -180,8 +182,8 @@ def priority(z, x, y):
     """
     # This would need to otherwise be specified in a config.
     # Requirements are EPSG:3857
-    nlcd_path = '/usr/data/nlcd/nlcd_webm_512.tif'
-    soil_path = '/usr/data/hydro_soils_webm_512.tif'
+    nlcd_path = '/usr/data/nlcd_webm_512_ovr.tif'
+    soil_path = '/usr/data/hydro_soils_webm_512_ovr.tif'
 
     # Decimated read for the bbox of each layer.
     bbox = tile_to_bbox(z, x, y)
@@ -192,7 +194,7 @@ def priority(z, x, y):
     # 0 (low) to 10 (high) normalized values.  For example, NLCD 21-24 are
     # highly impervious and are rated as a 10, where 42-43 are forested and
     # marked a low priority
-    nlcd_reclass = [[11, 0], [(21, 24), 10], [31, 7], [(41, 43), 1],
+    nlcd_reclass = [[11, 0], [(21, 24), urban], [31, 7], [(41, 43), 1],
                     [(51, 52), 6], [(71, 74), 4], [(81, 82), 5], [(90, 95), 2]]
 
     # Soil values aren't linearly worse, 3&4 have the slowest infiltration,

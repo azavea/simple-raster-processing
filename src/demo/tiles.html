@@ -1,0 +1,56 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Demo Tiles</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.9/leaflet.draw.css" />
+  <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+
+  <style>
+    .container, html, body {
+        height: 100%;
+        font-family: 'Roboto';
+    }
+
+    #map {
+        width: 100%;
+        height: 92%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+      <div id="map"></div>
+      <div id="control">
+          <span>GSI Urban Priority: </span><input id="urban-val" type="range" value="10" min="0" max="10"/>
+      </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+  <script>
+    var map = L.map('map', {center: [39.9, -75.2], zoom: 10}),
+        base = L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png').addTo(map),
+        overlays = {
+            NLCD: L.tileLayer('http://localhost:8080/nlcd-ovr/{z}/{x}/{y}.png', {opacity: 0.7}),
+            Soil: L.tileLayer('http://localhost:8080/soil/{z}/{x}/{y}.png', {opacity: 0.7}),
+            NLCD_S3: L.tileLayer('http://localhost:8080/nlcd_s3/{z}/{x}/{y}.png', {opacity: 0.7}),
+            NLCD_Grouped: L.tileLayer('http://localhost:8080/nlcd-grouped/{z}/{x}/{y}.png', {opacity: 0.7}),
+            GSI_Priority: L.tileLayer('http://localhost:8080/priority/{z}/{x}/{y}/{urban}.png', {
+                opacity: 0.7,
+                urban: function() {
+                    return $('#urban-val').val();
+                }
+            })
+        };
+
+    L.control.layers(null, overlays).addTo(map);
+
+
+  </script>
+</body>
+</html>
