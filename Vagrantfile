@@ -9,15 +9,15 @@ Vagrant.configure(2) do |config|
   # config.vm.synced_folder "~/.aws", "/home/vagrant/.aws"
 
   config.vm.provider :virtualbox do |vb|
-    vb.memory = 2048
-    vb.cpus = 2
+    vb.memory = 8048
+    vb.cpus = 6
   end
 
   # Geop Gunicorn
-  config.vm.network :forwarded_port, guest: 8080, host: 8080
+  config.vm.network :forwarded_port, guest: 8080, host: 8088
 
   # Geop Flask debug server
-  config.vm.network :forwarded_port, guest: 8081, host: 8081
+  config.vm.network :forwarded_port, guest: 8081, host: 8089
 
   # Sync a data directory which contains rasters on the host
   config.vm.synced_folder ENV['DATA_DIR'], "/vagrant/data"

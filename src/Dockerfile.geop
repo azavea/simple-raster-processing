@@ -35,6 +35,7 @@ EXPOSE 8080
 
 CMD ["-w", "1", \
      "-b", "0.0.0.0:8080", \
+     "--timeout", "60", \
      "--reload", \
      "--log-level", "info", \
      "--error-logfile", "-", \

@@ -4,10 +4,11 @@ from affine import Affine
 from functools import partial
 from rasterio import features
 from shapely.ops import transform
-from shapely.geometry import shape, mapping
+from shapely.geometry import shape, mapping, Polygon
 from shapely.geometry.collection import GeometryCollection
 from shapely.geometry.geo import box
 
+import json
 import numpy as np
 import pyproj
 import rasterio
@@ -249,7 +250,17 @@ def as_json(geoms, from_srs='epsg:5070', to_srs='epsg:4326'):
         from_srs: EPSG Code of provided geometries (5070)
         to_srs: EPSG Code of desired output geometries (4326)
     """
-    features = [reproject(shape(geom), to_srs, from_srs)
-                for geom in geoms]
+    if isinstance(geoms, Polygon):
+        results = mapping(reproject(geoms, to_srs, from_srs))
+        with open('/usr/data/dem.json', 'w') as dst:
+            dst.write(results)
+        return results
 
-    return mapping(GeometryCollection(features))
+    else:
+        features = [reproject(shape(geom), to_srs, from_srs)
+                    for geom in geoms]
+
+        results = mapping(GeometryCollection(features))
+        with open('/usr/data/dem.json', 'w') as dst:
+            dst.write(json.dumps(results))
+        return results
