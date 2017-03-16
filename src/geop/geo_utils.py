@@ -83,6 +83,70 @@ def mask_geom_on_raster(geom, raster_path, mods=None, all_touched=True):
     return np.ma.array(data=data, mask=geom_mask), shifted_affine
 
 
+def mask_sections_on_raster(geoms, raster_path, all_touched=False):
+    """
+    For a list of geometries, yield an ndarray of that geometry masked
+    on the supplied raster.
+
+    Args:
+        geoms: List of GeoJson-like polygons in the same SRS as `raster_path`
+            which will define the area of the raster to mask.
+
+        raster_path (string): A local file path to a geographic raster
+            containing values to extract.
+
+        all_touched (optional bool|default: True): If True, the cells value
+            will be unmasked if geom interstects with it.  If False, the
+            intersection must capture the centroid of the cell in order to be
+            unmasked.
+
+    Returns
+       Numpy masked array of source raster, cropped to the extent of the
+       input geometry. Areas where the supplied geometry does not intersect
+       are masked.
+    """
+    with rasterio.open(raster_path) as src:
+        for geom in geoms:
+            window, shifted_affine = get_window_and_affine(geom, src)
+            data = src.read(1, window=window)
+
+            geom_mask = features.geometry_mask(
+                [geom],
+                out_shape=data.shape,
+                transform=shifted_affine,
+                all_touched=all_touched
+            )
+            yield np.ma.array(data=data, mask=geom_mask), shifted_affine
+
+
+def subdivide_polygon(geom, division_factor):
+    """
+    Divide a geometry such that no piece is greater than the size of
+    `division_factor`, in units of the coordinate system.
+
+    Args:
+        geom: GeoJson-like polygon to subdivide
+        division_factor: The number of SRS units to divide the geom bounds by,
+            to provide subgeometries whos extend to not exceed that size.
+    Returns:
+        List of GeoJson-like polygons that `geom` is composed of
+    """
+    bounds = np.asarray(geom.bounds)
+    xmin, ymin, xmax, ymax  =  np.floor_divide(bounds, division_factor).astype(int)
+
+    children = []
+    for i in range(xmin, xmax + 1):
+        for j in range(ymin, ymax + 1):
+            sub_poly = box(i * division_factor, j * division_factor,
+                           (i + 1) * division_factor, (j + 1 ) * division_factor)
+            overlap_poly = geom.intersection(sub_poly)
+
+            if not overlap_poly.is_empty:
+                children.append(overlap_poly)
+
+    return children
+
+
 def get_window_and_affine(geom, raster_src):
     """
     Get a rasterio window block from the bounding box of a vector feature and

@@ -14,7 +14,7 @@ services:
       - ./data:/usr/data
       - $HOME/.aws:/root/.aws
     environment:
-      AWS_PROFILE: "usace-levee"
+      AWS_PROFILE: "azavea-datahub"
   lambda:
     image: srp-lambda-geop
     build:

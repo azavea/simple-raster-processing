@@ -9,8 +9,8 @@ Vagrant.configure(2) do |config|
   # config.vm.synced_folder "~/.aws", "/home/vagrant/.aws"
 
   config.vm.provider :virtualbox do |vb|
-    vb.memory = 8048
-    vb.cpus = 6
+    vb.memory = 2048
+    vb.cpus = 2
   end
 
   # Geop Gunicorn

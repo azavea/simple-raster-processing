@@ -19,6 +19,59 @@ NLCD_THREES = '../test_data/philly_threes.tif'  # all cells are 3
 NLCD_LARGE = '../test_data/nlcd_large.tif'
 
 
+class ReadTests(unittest.TestCase):
+    def setUp(self):
+        self.url = 's3://simple-raster-processing/nlcd_512_lzw_tiled.tif'
+        self.small_geom = Polygon([
+            [ -77.255859375, 40.069664523297774 ],
+            [ -76.673583984375, 39.59722324495565 ],
+            [ -76.102294921875, 40.1452892956766 ],
+            [ -76.651611328125, 40.68063802521456 ],
+            [ -77.255859375, 40.069664523297774 ]
+        ])
+
+    def test_get_subwindows_deg(self):
+        windows = geo_utils.subdivide_polygon(self.small_geom, 1)
+
+        self.assertGreater(len(windows), 1,
+                           "Geometry in degrees was not subdivided")
+
+        windowed_area = reduce(lambda x, y: x + y.area, windows, 0)
+        self.assertLess(abs(self.small_geom.area - windowed_area), 0.0000000001,
+                        "Area of subdivided geometry is not close enough \
+                        to the area of the original geometry (in deg)")
+
+
+    def test_get_subwindows_meters(self):
+        geom = geo_utils.reproject(self.small_geom, from_srs='epsg:4326',
+                                   to_srs='epsg:5070')
+        windows = geo_utils.subdivide_polygon(geom, 100000)
+
+        self.assertGreater(len(windows), 1,
+                           "Geometry in meters was not subdivided")
+
+        windowed_area = reduce(lambda x, y: x + y.area, windows, 0)
+        self.assertLess(abs(geom.area - windowed_area), 0.000001,
+                        "Area of subdivided geometry is not close enough \
+                        to the area of the original geometry (in m)")
+
+    def test_sectioned_read(self):
+        geom = geo_utils.reproject(self.small_geom, from_srs='epsg:4326',
+                                   to_srs='epsg:5070')
+        windows = geo_utils.subdivide_polygon(geom, 100000)
+        sections = geo_utils.mask_sections_on_raster(windows, self.url, all_touched=False)
+
+        sums = [np.ma.sum(section) for section, _ in sections]
+        section_sum = np.sum(np.asarray(sums))
+
+        full_data, _ = geo_utils.mask_geom_on_raster(geom, self.url, all_touched=False)
+        full_sum = np.ma.sum(full_data)
+
+        self.assertEqual(section_sum, full_sum,
+                         "The sum of the area was different when chunked \
+                         than when read whole")
+
+
 class CountTests(unittest.TestCase):
     count_geom = Polygon([
         [1747260.99651947943493724, 2071928.23170474520884454],
