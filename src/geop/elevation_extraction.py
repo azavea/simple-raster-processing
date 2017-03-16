@@ -11,10 +11,37 @@ from affine import Affine
 from multiprocessing import Process, Queue, cpu_count
 from shapely.geometry import shape, mapping, MultiPolygon
 
-from geo_utils import mask_geom_on_raster
+from geo_utils import mask_geom_on_raster, mask_sections_on_raster, \
+    subdivide_polygon
+
 
 # Iniialized globaly to share with multiple processes
 SHARED_LAYER = None
+
+
+def min_max_from_sections(geom, raster_path):
+    sections = subdivide_polygon(geom, 1)
+    print(len(sections))
+
+    i = 0
+    mins, maxs = [], []
+    for tile, transform, meta, window in mask_sections_on_raster(sections, raster_path):
+        print('.')
+        #with rasterio.open('s3://cwbi-geoprocessing-ned/test-write.tif', 'r+', )
+        fmeta = meta.copy()
+        fmeta.update({
+            'height': window[0][1] - window[0][0],
+            'width': window[1][1] - window[1][0],
+            'transform': transform
+        })
+        with rasterio.open('./test{}.tif'.format(i), 'w', **fmeta) as out:
+            out.write(tile, indexes=1)
+
+        mins.append(tile.min())
+        maxs.append(tile.max())
+        i += 1
+
+    print(min(mins), max(maxs))
 
 
 def save_features(cnt, features):

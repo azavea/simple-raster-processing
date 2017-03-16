@@ -116,7 +116,8 @@ def mask_sections_on_raster(geoms, raster_path, all_touched=False):
                 transform=shifted_affine,
                 all_touched=all_touched
             )
-            yield np.ma.array(data=data, mask=geom_mask), shifted_affine
+            yield np.ma.array(data=data, mask=geom_mask), shifted_affine, \
+                              src.meta, window
 
 
 def subdivide_polygon(geom, division_factor):

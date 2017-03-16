@@ -71,6 +71,17 @@ class ReadTests(unittest.TestCase):
                          "The sum of the area was different when chunked \
                          than when read whole")
 
+    def test_sequential_stats(self):
+        with open('/usr/data/jumbo_leveed_area.wkt') as j:
+            geom = wkt.loads(j.read())
+
+        miss_dem = '/usr/data/miss.tif'
+
+        geom = geo_utils.reproject(geom, 'epsg:4269', 'epsg:4326')
+
+        elevation_extraction.min_max_from_sections(geom, miss_dem)
+
+
 
 class CountTests(unittest.TestCase):
     count_geom = Polygon([
