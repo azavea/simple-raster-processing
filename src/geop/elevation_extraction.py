@@ -12,7 +12,7 @@ from multiprocessing import Process, Queue, cpu_count
 from shapely.geometry import shape, mapping, MultiPolygon
 
 from geo_utils import mask_geom_on_raster, mask_sections_on_raster, \
-    subdivide_polygon
+    subdivide_polygon, get_window_and_affine, translate_relative_window
 
 
 # Iniialized globaly to share with multiple processes
@@ -20,28 +20,42 @@ SHARED_LAYER = None
 
 
 def min_max_from_sections(geom, raster_path):
-    sections = subdivide_polygon(geom, 1)
-    print(len(sections))
+    # Split the geometry into section no bigger than 1 degree in order
+    # to sequentially read in windows of the raster to control memory usage
+    sections = subdivide_polygon(geom, 3)
+    print('Sections:', len(sections))
 
-    i = 0
-    mins, maxs = [], []
-    for tile, transform, meta, window in mask_sections_on_raster(sections, raster_path):
-        print('.')
-        #with rasterio.open('s3://cwbi-geoprocessing-ned/test-write.tif', 'r+', )
-        fmeta = meta.copy()
-        fmeta.update({
-            'height': window[0][1] - window[0][0],
-            'width': window[1][1] - window[1][0],
-            'transform': transform
+    # Open the src raster over the entire area to get metadata which
+    # will be used to create an output raster of the same overall area
+    with rasterio.open(raster_path) as src:
+        full_window, transform = get_window_and_affine(geom, src)
+        meta = src.meta.copy()
+        meta.update({
+            'height': full_window[0][1] - full_window[0][0],
+            'width': full_window[1][1] - full_window[1][0],
+            'transform': transform,
+            'nodata': np.finfo(meta['dtype']).min,
+            'compress': 'LZW',
+            'predictor': 3,
+            'num_threads': 'ALL_CPUS',
+            'driver': 'GTiff',
         })
-        with rasterio.open('./test{}.tif'.format(i), 'w', **fmeta) as out:
-            out.write(tile, indexes=1)
 
-        mins.append(tile.min())
-        maxs.append(tile.max())
-        i += 1
+    with rasterio.open('./merged_whole.tif', 'w', **meta) as out:
 
-    print(min(mins), max(maxs))
+        # Calculate stats for each tile and write tile into correct window
+        # of output raster
+        mins, maxs = [], []
+        for tile, window in mask_sections_on_raster(sections, raster_path):
+            mins.append(tile.min())
+            maxs.append(tile.max())
+
+            tile[tile.mask] = meta['nodata']
+            sub_write = translate_relative_window(full_window, window)
+            out.write(tile, window=sub_write, indexes=1)
+
+    # Determine the overall min/max for the entire area
+    return (min(mins), max(maxs))
 
 
 def save_features(cnt, features):

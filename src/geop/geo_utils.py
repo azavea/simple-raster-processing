@@ -116,8 +116,7 @@ def mask_sections_on_raster(geoms, raster_path, all_touched=False):
                 transform=shifted_affine,
                 all_touched=all_touched
             )
-            yield np.ma.array(data=data, mask=geom_mask), shifted_affine, \
-                              src.meta, window
+            yield np.ma.array(data=data, mask=geom_mask), window
 
 
 def subdivide_polygon(geom, division_factor):
@@ -133,7 +132,7 @@ def subdivide_polygon(geom, division_factor):
         List of GeoJson-like polygons that `geom` is composed of
     """
     bounds = np.asarray(geom.bounds)
-    xmin, ymin, xmax, ymax  =  np.floor_divide(bounds, division_factor).astype(int)
+    xmin, ymin, xmax, ymax = np.floor_divide(bounds, division_factor).astype(int)
 
     children = []
     for i in range(xmin, xmax + 1):
@@ -184,6 +183,27 @@ def get_window_and_affine(geom, raster_src):
     shifted_affine = Affine(t.a, t.b, c, t.d, t.e, f)
 
     return window, shifted_affine
+
+
+def translate_relative_window(outer_window, inner_window):
+    """
+    Translate a relative offset between a larger outer window and
+    an inner window. Useful for writing an array to a raster file
+    which has been opened with a different extent then the array.
+
+    Args:
+        outer_window: rasterio window tuple
+        outer_window: rasterio window tuple
+
+    Returns
+        rasterio window tuple with offsets for row/column values
+        which represent absolute indexes from the upper left corner
+        of the outer_window
+    """
+    return ((inner_window[0][0] - outer_window[0][0],
+             inner_window[0][1] - outer_window[0][1]),
+            (inner_window[1][0] - outer_window[1][0],
+             inner_window[1][1] - outer_window[1][1]))
 
 
 def reproject(geom, to_srs='epsg:5070', from_srs='epsg:4326'):

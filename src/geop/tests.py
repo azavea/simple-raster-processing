@@ -23,11 +23,11 @@ class ReadTests(unittest.TestCase):
     def setUp(self):
         self.url = 's3://simple-raster-processing/nlcd_512_lzw_tiled.tif'
         self.small_geom = Polygon([
-            [ -77.255859375, 40.069664523297774 ],
-            [ -76.673583984375, 39.59722324495565 ],
-            [ -76.102294921875, 40.1452892956766 ],
-            [ -76.651611328125, 40.68063802521456 ],
-            [ -77.255859375, 40.069664523297774 ]
+            [-77.255859375, 40.069664523297774],
+            [-76.673583984375, 39.59722324495565],
+            [-76.102294921875, 40.1452892956766],
+            [-76.651611328125, 40.68063802521456],
+            [-77.255859375, 40.069664523297774]
         ])
 
     def test_get_subwindows_deg(self):
@@ -37,10 +37,10 @@ class ReadTests(unittest.TestCase):
                            "Geometry in degrees was not subdivided")
 
         windowed_area = reduce(lambda x, y: x + y.area, windows, 0)
-        self.assertLess(abs(self.small_geom.area - windowed_area), 0.0000000001,
+        self.assertLess(abs(self.small_geom.area - windowed_area),
+                        0.0000000001,
                         "Area of subdivided geometry is not close enough \
                         to the area of the original geometry (in deg)")
-
 
     def test_get_subwindows_meters(self):
         geom = geo_utils.reproject(self.small_geom, from_srs='epsg:4326',
@@ -59,12 +59,14 @@ class ReadTests(unittest.TestCase):
         geom = geo_utils.reproject(self.small_geom, from_srs='epsg:4326',
                                    to_srs='epsg:5070')
         windows = geo_utils.subdivide_polygon(geom, 100000)
-        sections = geo_utils.mask_sections_on_raster(windows, self.url, all_touched=False)
+        sections = geo_utils.mask_sections_on_raster(windows, self.url,
+                                                     all_touched=False)
 
         sums = [np.ma.sum(section) for section, _ in sections]
         section_sum = np.sum(np.asarray(sums))
 
-        full_data, _ = geo_utils.mask_geom_on_raster(geom, self.url, all_touched=False)
+        full_data, _ = geo_utils.mask_geom_on_raster(geom, self.url,
+                                                     all_touched=False)
         full_sum = np.ma.sum(full_data)
 
         self.assertEqual(section_sum, full_sum,
@@ -72,15 +74,24 @@ class ReadTests(unittest.TestCase):
                          than when read whole")
 
     def test_sequential_stats(self):
-        with open('/usr/data/jumbo_leveed_area.wkt') as j:
-            geom = wkt.loads(j.read())
+        salem = Polygon([
+            [-122.6953125, 44.64325407516125],
+            [-121.97296142578124, 44.64129986075226],
+            [-121.7340087890625, 44.44750680513074],
+            [-120.98968505859374, 44.623708968901205],
+            [-121.91253662109376, 44.81691551782855],
+            [-122.6953125, 44.64325407516125]
+        ])
 
-        miss_dem = '/usr/data/miss.tif'
+        #with open('/usr/data/jumbo_leveed_area.wkt') as j:
+        #    geom = wkt.loads(j.read())
 
-        geom = geo_utils.reproject(geom, 'epsg:4269', 'epsg:4326')
+        us_dem = '/usr/data/disk2-d9.vrt'
 
-        elevation_extraction.min_max_from_sections(geom, miss_dem)
+        geom = geo_utils.reproject(salem, 'epsg:4269', 'epsg:4326')
 
+        mn, mx = elevation_extraction.min_max_from_sections(geom, us_dem)
+        print(mn, mx)
 
 
 class CountTests(unittest.TestCase):
